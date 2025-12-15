@@ -13,7 +13,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -94,6 +94,14 @@ class FunctionReport(BaseModel):
     risk_score: float
     findings: list[Finding] = Field(default_factory=list)
     notes: str = ""
+    confidence: float = 0.5
+    categories: list[str] = Field(default_factory=list)
+    indicators: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+    c2_indicators: list[str] = Field(default_factory=list)
+    stealth_indicators: list[str] = Field(default_factory=list)
+    data_types_accessed: list[str] = Field(default_factory=list)
+    network_actions: list[str] = Field(default_factory=list)
 
 
 class BinaryReport(BaseModel):
@@ -486,6 +494,9 @@ class CerebrasClient:
                 "4. Highlight any magic constants, suspicious strings, or hidden branches.",
                 "5. Provide a numeric risk_score between 0 and 1 (0 = benign, 1 = clearly malicious).",
                 "6. Provide specific evidence: line snippets or addresses.",
+                "7. Include categories (e.g., backdoor, C2, exfiltration, persistence).",
+                "8. Include indicators (IoCs), network_actions, data_types_accessed, stealth_indicators, c2_indicators.",
+                "9. Add recommended_actions for an analyst.",
                 "",
                 "Return JSON with keys:",
                 '- "function_name": str',
@@ -495,6 +506,14 @@ class CerebrasClient:
                 '- "risk_score": float',
                 '- "findings": [ { "type": str, "description": str, "evidence": str } ]',
                 '- "notes": str',
+                '- "confidence": float',
+                '- "categories": [str]',
+                '- "indicators": [str]',
+                '- "recommended_actions": [str]',
+                '- "c2_indicators": [str]',
+                '- "stealth_indicators": [str]',
+                '- "data_types_accessed": [str]',
+                '- "network_actions": [str]',
             ]
         )
 
@@ -566,8 +585,11 @@ class CerebrasClient:
                 "2. Identify security-relevant operations (auth, network, crypto, file I/O, process control).",
                 "3. Flag backdoor/Trojan-like behavior (magic values, hidden branches, suspicious env checks).",
                 "4. Highlight magic constants, suspicious strings, or conditional bypasses.",
-                "5. Assign risk_score: 0.0 (benign) to 1.0 (clearly malicious).",
+                "5. Assign risk_score: 0.0 (benign) to 1.0 (clearly malicious) and confidence 0-1.",
                 "6. Provide specific evidence (addresses, instructions, strings).",
+                "7. Add categories (backdoor, persistence, credential access, network/C2, exfiltration, anti-analysis).",
+                "8. Include indicators/IoCs, c2_indicators, stealth_indicators, data_types_accessed, network_actions.",
+                "9. Recommend analyst actions (triage, instrumentation, patching).",
             ]
         )
 
@@ -703,37 +725,48 @@ class CerebrasClient:
         return (resp.choices[0].message.content or "").strip()
 
 
-def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="Phase 2: static LLM-assisted binary analysis")
-    parser.add_argument("binary", type=str, help="Path to binary (ELF preferred)")
-    parser.add_argument("--model", type=str, default="zai-glm-4.6", help="Cerebras model to use")
-    parser.add_argument("--outdir", type=str, default=str(Path("phase2") / "reports"))
-    parser.add_argument("--tmpdir", type=str, default=str(Path("phase2") / "tmp"))
-    parser.add_argument("--max-functions", type=int, default=40, help="Max functions to analyze")
-    parser.add_argument("--batch-size", type=int, default=8, help="Functions per API call (leverages long context)")
-    parser.add_argument("--max-lines-per-chunk", type=int, default=350)
-    parser.add_argument("--risk-threshold", type=float, default=0.4)
-    parser.add_argument("--skip-llm", action="store_true", help="Only run extraction + chunking")
-    parser.add_argument("--force", action="store_true", help="Force re-run extraction tools")
+def run_pipeline(
+    *,
+    binary: Path,
+    model: str = "zai-glm-4.6",
+    outdir: Path | str = Path("phase2") / "reports",
+    tmpdir: Path | str = Path("phase2") / "tmp",
+    max_functions: int = 40,
+    batch_size: int = 8,
+    max_lines_per_chunk: int = 350,
+    risk_threshold: float = 0.4,
+    skip_llm: bool = False,
+    force: bool = False,
+    progress_callback: Optional[Callable[[str, str], None]] = None,
+) -> dict[str, Any]:
+    """Run the Phase 2 pipeline programmatically (CLI-compatible).
 
-    args = parser.parse_args(argv)
+    Returns a dict with paths and parsed data suitable for the Streamlit UI.
+    """
 
-    binary_path = Path(args.binary).expanduser().resolve()
+    def notify(phase: str, detail: str) -> None:
+        if progress_callback:
+            progress_callback(phase, detail)
+
+    binary_path = Path(binary).expanduser().resolve()
     if not binary_path.exists():
-        console.print(f"[red]Binary not found:[/red] {binary_path}")
-        return 2
+        raise FileNotFoundError(f"Binary not found: {binary_path}")
 
-    tmp_root = Path(args.tmpdir).expanduser().resolve()
-    out_root = Path(args.outdir).expanduser().resolve()
+    tmp_root = Path(tmpdir).expanduser().resolve()
+    out_root = Path(outdir).expanduser().resolve()
 
     binary_sha = sha256_file(binary_path)
     report_dir = out_root / f"{binary_path.name}_{binary_sha[:8]}"
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        t = progress.add_task("Extracting artifacts", total=None)
-        artifacts = extract_artifacts(binary_path, tmp_root=tmp_root, force=args.force)
-        progress.update(t, completed=1)
+    notify("extract", "Extracting artifacts")
+    if progress_callback:
+        artifacts = extract_artifacts(binary_path, tmp_root=tmp_root, force=force)
+    else:
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
+            t = progress.add_task("Extracting artifacts", total=None)
+            artifacts = extract_artifacts(binary_path, tmp_root=tmp_root, force=force)
+            progress.update(t, completed=1)
 
     dis_text = artifacts.dis_path.read_text("utf-8", errors="replace")
     strings_text = artifacts.strings_path.read_text("utf-8", errors="replace")
@@ -747,13 +780,10 @@ def main(argv: list[str]) -> int:
     notable_strings = select_notable_strings(all_strings)
 
     functions = parse_objdump_functions(dis_text)
-    # If the binary is stripped, objdump may only emit a few symbol headers
-    # (e.g., per-section) rather than per-function labels. Fall back to region
-    # chunking so the pipeline still works on real-world firmware binaries.
     if len(functions) >= 10:
         chunks = chunk_functions(
             functions,
-            max_lines_per_chunk=args.max_lines_per_chunk,
+            max_lines_per_chunk=max_lines_per_chunk,
             strings_nearby=notable_strings,
         )
     else:
@@ -761,19 +791,19 @@ def main(argv: list[str]) -> int:
         if sections:
             chunks = chunk_regions(
                 sections,
-                max_lines_per_chunk=args.max_lines_per_chunk,
+                max_lines_per_chunk=max_lines_per_chunk,
                 strings_nearby=notable_strings,
             )
         else:
             chunks = chunk_regions(
                 [("disassembly", dis_text.splitlines())],
-                max_lines_per_chunk=args.max_lines_per_chunk,
+                max_lines_per_chunk=max_lines_per_chunk,
                 strings_nearby=notable_strings,
             )
 
     scored = [(interest_score(c, notable_strings), c) for c in chunks]
     scored.sort(key=lambda t: t[0], reverse=True)
-    selected = [c for _, c in scored[: max(args.max_functions, 0)]]
+    selected = [c for _, c in scored[: max(max_functions, 0)]]
 
     extraction_summary = {
         "binary": str(binary_path),
@@ -794,30 +824,31 @@ def main(argv: list[str]) -> int:
         "notable_string_count": len(notable_strings),
     }
 
-    (report_dir / "extraction_summary.json").write_text(
-        json.dumps(extraction_summary, indent=2), encoding="utf-8"
-    )
+    extraction_path = report_dir / "extraction_summary.json"
+    extraction_path.write_text(json.dumps(extraction_summary, indent=2), encoding="utf-8")
 
-    if args.skip_llm:
-        console.print(f"[green]Extraction complete.[/green] Wrote {report_dir/'extraction_summary.json'}")
-        return 0
+    if skip_llm:
+        return {
+            "report_dir": report_dir,
+            "extraction_summary_path": extraction_path,
+            "function_reports_path": None,
+            "binary_report_path": None,
+            "binary_report": None,
+            "suspicious": [],
+        }
 
     api_key = os.environ.get("CEREBRAS_API_KEY")
     if not api_key:
-        console.print("[red]CEREBRAS_API_KEY is not set.[/red] Run with --skip-llm or set it in .env")
-        return 2
+        raise RuntimeError("CEREBRAS_API_KEY is not set. Run with --skip-llm or set it in .env")
 
-    client = CerebrasClient(api_key=api_key, model=args.model, batch_size=args.batch_size)
+    client = CerebrasClient(api_key=api_key, model=model, batch_size=batch_size)
 
     reports: list[FunctionReport] = []
 
-    # Process in batches to leverage Gemini 3's long context and reduce API calls
-    with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        num_batches = (len(selected) + args.batch_size - 1) // args.batch_size
-        task = progress.add_task(f"Analyzing {len(selected)} functions in {num_batches} batches", total=num_batches)
-        
-        for i in range(0, len(selected), args.batch_size):
-            batch = selected[i : i + args.batch_size]
+    if progress_callback:
+        notify("analyze", f"Analyzing {len(selected)} functions")
+        for i in range(0, len(selected), batch_size):
+            batch = selected[i : i + batch_size]
             batch_reports = client.analyze_batch(
                 chunks=batch,
                 binary_name=binary_path.name,
@@ -826,23 +857,39 @@ def main(argv: list[str]) -> int:
                 notable_strings=notable_strings,
             )
             reports.extend(batch_reports)
-            progress.advance(task)
+            notify("analyze", f"Completed batch {(i // batch_size) + 1}")
+    else:
+        with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
+            num_batches = (len(selected) + batch_size - 1) // batch_size
+            task = progress.add_task(
+                f"Analyzing {len(selected)} functions in {num_batches} batches", total=num_batches
+            )
+            for i in range(0, len(selected), batch_size):
+                batch = selected[i : i + batch_size]
+                batch_reports = client.analyze_batch(
+                    chunks=batch,
+                    binary_name=binary_path.name,
+                    arch=arch,
+                    file_summary=file_summary,
+                    notable_strings=notable_strings,
+                )
+                reports.extend(batch_reports)
+                progress.advance(task)
 
-    binary_report = BinaryReport(
+    binary_report_obj = BinaryReport(
         binary_path=str(binary_path),
         binary_sha256=binary_sha,
         metadata={"arch": arch, "file": file_summary},
         notable_strings=notable_strings,
         analyzed_functions=len(selected),
-        model=args.model,
+        model=model,
         function_reports=reports,
     )
 
-    (report_dir / "function_reports.json").write_text(
-        binary_report.model_dump_json(indent=2), encoding="utf-8"
-    )
+    function_reports_path = report_dir / "function_reports.json"
+    function_reports_path.write_text(binary_report_obj.model_dump_json(indent=2), encoding="utf-8")
 
-    suspicious = [r for r in reports if r.risk_score >= args.risk_threshold]
+    suspicious = [r for r in reports if r.risk_score >= risk_threshold]
     suspicious.sort(key=lambda r: r.risk_score, reverse=True)
 
     md = client.aggregate(
@@ -853,9 +900,56 @@ def main(argv: list[str]) -> int:
         top_reports=suspicious,
     )
 
-    (report_dir / "binary_report.md").write_text(md + "\n", encoding="utf-8")
+    binary_report_path = report_dir / "binary_report.md"
+    binary_report_path.write_text(md + "\n", encoding="utf-8")
 
-    console.print(f"[green]Done.[/green] Report dir: {report_dir}")
+    return {
+        "report_dir": report_dir,
+        "extraction_summary_path": extraction_path,
+        "function_reports_path": function_reports_path,
+        "binary_report_path": binary_report_path,
+        "binary_report": binary_report_obj,
+        "suspicious": suspicious,
+    }
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Phase 2: static LLM-assisted binary analysis")
+    parser.add_argument("binary", type=str, help="Path to binary (ELF preferred)")
+    parser.add_argument("--model", type=str, default="zai-glm-4.6", help="Cerebras model to use")
+    parser.add_argument("--outdir", type=str, default=str(Path("phase2") / "reports"))
+    parser.add_argument("--tmpdir", type=str, default=str(Path("phase2") / "tmp"))
+    parser.add_argument("--max-functions", type=int, default=40, help="Max functions to analyze")
+    parser.add_argument("--batch-size", type=int, default=8, help="Functions per API call (leverages long context)")
+    parser.add_argument("--max-lines-per-chunk", type=int, default=350)
+    parser.add_argument("--risk-threshold", type=float, default=0.4)
+    parser.add_argument("--skip-llm", action="store_true", help="Only run extraction + chunking")
+    parser.add_argument("--force", action="store_true", help="Force re-run extraction tools")
+
+    args = parser.parse_args(argv)
+
+    try:
+        result = run_pipeline(
+            binary=Path(args.binary),
+            model=args.model,
+            outdir=Path(args.outdir),
+            tmpdir=Path(args.tmpdir),
+            max_functions=args.max_functions,
+            batch_size=args.batch_size,
+            max_lines_per_chunk=args.max_lines_per_chunk,
+            risk_threshold=args.risk_threshold,
+            skip_llm=args.skip_llm,
+            force=args.force,
+            progress_callback=None,
+        )
+    except Exception as exc:  # Keep CLI UX intact
+        console.print(f"[red]{exc}[/red]")
+        return 2
+
+    if args.skip_llm:
+        console.print(f"[green]Extraction complete.[/green] Wrote {result['extraction_summary_path']}")
+    else:
+        console.print(f"[green]Done.[/green] Report dir: {result['report_dir']}")
     return 0
 
 

@@ -1,51 +1,45 @@
 # Copilot instructions (HSDSF)
 
 ## Big picture (what this repo is)
-- This repo is currently **plan-first**: the primary “source of truth” is the project plan in [README.md](README.md) and the Phase 2 execution notes in [phase2/planforphase2.md](phase2/planforphase2.md).
+- This repo is **plan-first**, but Phase 2 now has runnable code: start with [README.md](README.md) for the overall phased PoC, then use [phase2/README.md](phase2/README.md) as the Phase 2 runbook.
 - Target PoC: a **hybrid static + dynamic security framework** for supply-chain anomaly detection on NVIDIA Jetson AGX Xavier.
-  - **Phase 2 (current focus):** off-device static analysis of binaries via disassembly/strings/metadata + LLM-assisted reporting.
+  - **Phase 2 (implemented):** off-device static analysis of binaries (binutils extraction → chunking → LLM scoring → report).
 
 ## Repo structure (current)
 - [README.md](README.md): overall architecture + phased deliverables (static LLM analysis → telemetry → anomaly model → TensorRT deployment).
-- [phase2/planforphase2.md](phase2/planforphase2.md): concrete Phase 2 pipeline spec (tools, chunking, prompts, expected scripts).
+- [phase2/README.md](phase2/README.md): how to build sample binaries + run extraction / full analysis.
+- [phase2/planforphase2.md](phase2/planforphase2.md): background Phase 2 design notes (chunking + prompt structure).
+- `phase2/analyze_binary.py`: the end-to-end Phase 2 runner.
 
 ## Where to put Phase 2 code
-- Keep all Phase 2 implementation scripts and outputs under `phase2/` (this repo’s Phase 2 “home”).
-- Preferred entrypoints:
-  - `phase2/analyze_binary.py` (end-to-end runner)
-  - `phase2/extract_binary_info.py` (optional helper; may be merged into `analyze_binary.py`)
+- Keep all Phase 2 implementation and outputs under `phase2/`.
+- Don’t commit generated artifacts: `phase2/tmp/` and `phase2/reports/` are git-ignored (see `phase2/.gitignore`).
 
-## Phase 2 pipeline (implement to match the plan)
-- Data flow:
-  1) Input binary (prefer ELF; PE is optional per plan)
-  2) Extract artifacts using binutils tooling (`objdump`, `readelf`, `nm`, `strings`)
-  3) Chunk disassembly by function/region (function headers like `<function_name>:` in `objdump` output)
-  4) Send each chunk to the LLM with a structured prompt
-  5) Aggregate results into a **structured report** with evidence locations (addresses/functions/strings) + confidence/rationale
+## Phase 2 workflow (what agents should follow)
+- System prerequisites: Unix-like binutils (`objdump`, `readelf`, `nm`, `strings`, `file`) + a C compiler for sample binaries.
+  - On Windows, prefer WSL so `objdump/readelf/nm/strings` behave as expected.
+- Python deps: install from `phase2/requirements.txt`.
+- Run extraction only (no API): `python phase2/analyze_binary.py <binary> --skip-llm`
+- Run full analysis: requires `CEREBRAS_API_KEY` (loaded via `python-dotenv` from a repo-root `.env`).
+  - Optional sanity check: `python phase2/test_api.py`
+- Outputs are written to `phase2/reports/<binary_name>_<sha8>/`:
+  - `extraction_summary.json`, `function_reports.json`, `binary_report.md`
 
-## Conventions to follow (from docs)
-- Prefer script names referenced in Phase 2 doc when creating implementation (place them under `phase2/`; see above).
-- Extraction commands and outputs should mirror the plan:
-  - `objdump -d -Mintel -w <bin> > <bin>.dis`
-  - `strings <bin> > <bin>.strings` (optionally `strings -t x` if you need addresses)
-  - `readelf -h -S -s <bin> > <bin>.meta`
-  - `nm -C <bin> > <bin>.symbols`
-- Chunking targets (initial heuristic per plan): ~200–400 lines of disassembly per chunk; split large functions into `name#1`, `name#2`, …
-- Use a typed data model for chunks (Phase 2 doc shows a `FunctionChunk` Pydantic sketch with `name`, `start_addr`, `disassembly`, `strings_nearby`).
+## Phase 2 conventions (implemented in code)
+- Extraction mirrors the plan and is implemented in `extract_artifacts()` in `phase2/analyze_binary.py` (writes `.dis/.strings/.meta/.symbols/.file` under `phase2/tmp/`).
+- Chunking is by function headers in `objdump` output; if the binary is stripped and few functions are found, it falls back to section/region chunking.
+- Default chunk size is tuned for LLM context (`--max-lines-per-chunk` default 350) and analysis is limited by `--max-functions`.
+- Risk triage is controlled by `--risk-threshold` (default 0.4) and `--batch-size`.
 
 ## External integrations / configuration
-- LLM provider in Phase 2 notes: **Gemini**.
-  - Read the API key from env var `GEMINI_API_KEY`.
-  - Standardize on the `google-genai` SDK only.
-    - Install: `pip install google-genai`
-    - Imports used in the plan:
-      - `from google import genai`
-      - `from google.genai import types`
+- LLM provider used by the current Phase 2 implementation: **Cerebras** (`cerebras-cloud-sdk`, default model `zai-glm-4.6`).
+- Read API key from env var `CEREBRAS_API_KEY` (prefer a local `.env`; never hardcode secrets in code or docs).
 
 ## Dev workflow assumptions (important)
-- The docs assume **Unix-like tooling** (binutils, gcc, etc.). If developing on Windows, prefer **WSL** or a Linux environment so `objdump/readelf/nm/strings` behave as expected.
-- The repo does not currently define a build/test runner; keep early implementations runnable as simple scripts (e.g., `python analyze_binary.py <path-to-binary>`), and align outputs with the report formats described in the docs.
+- Prefer runnable scripts over frameworks: Phase 2 is a CLI runner (`phase2/analyze_binary.py`) with artifact + report directories.
+- Validation baseline lives in Phase 2 assets:
+  - `phase2/firmware_clean.c`, `phase2/firmware_trojan.c`, plus the expected behavior in `phase2/ground_truth.md`.
 
 ## When adding new code
-- Keep changes tightly scoped to what’s described in [README.md](README.md) and [phase2/planforphase2.md](phase2/planforphase2.md).
+- Keep changes tightly scoped to what’s described in [README.md](README.md) and the Phase 2 docs in `phase2/`.
 - Don’t introduce additional phases, UIs, or services unless a doc in this repo explicitly calls for it.

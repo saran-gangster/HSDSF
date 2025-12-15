@@ -40,6 +40,21 @@ python phase2/analyze_binary.py phase2/firmware_trojan --max-functions 20 --batc
 python phase2/analyze_binary.py phase2/firmware_clean --max-functions 20 --batch-size 8
 ```
 
+## Streamlit UI (interactive)
+
+Launch the UI (assumes Linux/WSL with binutils available):
+
+```bash
+streamlit run phase2/streamlit_app.py --server.port 8501
+```
+
+Features:
+- Upload arbitrary ELF binaries or pick the bundled samples.
+- Configure model, max functions, chunk size, and risk threshold.
+- Live progress during extraction/LLM calls.
+- Visuals: risk histogram, top functions, category counts, IoCs table, executive markdown report.
+- Cached reports are listed in the sidebar and previewed in the demo expander.
+
 ## Results
 
 Reports are generated in `phase2/reports/<binary_name>_<sha>/`:
