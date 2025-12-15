@@ -1,0 +1,11 @@
+# Default perf events for Jetson-class CPUs; customize per board if needed
+perf_events:
+  - cycles
+  - instructions
+  - branches
+  - branch-misses
+  - cache-references
+  - cache-misses
+  - context-switches
+  - cpu-migrations
+  - page-faults
