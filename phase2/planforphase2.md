@@ -1,7 +1,7 @@
-1. Plan to execute Phase 2 now (no Jetson, using Gemini Studio)
+Plan to execute Phase 2 now (no Jetson, using Gemini Studio)
 -------------------------------------------------------------
 
-You can do all of Phase 2 entirely on your laptop; nothing in that phase actually depends on Jetson hardware. You just need binaries, standard Unix tooling, and the Gemini API.
+We can do all of Phase 2 entirely on laptop; nothing in that phase actually depends on Jetson hardware. You just need binaries, standard Unix tooling, and the Gemini API.
 
 ### 1.1. Concrete goals for Phase 2 (adapted)
 
@@ -63,9 +63,6 @@ def generate():
         thinkingConfig: {
             thinkingLevel: "HIGH",
         },
-        system_instruction=[
-            types.Part.from_text(text="""You are an top tier ML researcher/Engineer who is currently writing the best resume of people given their expertise."""),
-        ],
     )
 
     for chunk in client.models.generate_content_stream(
