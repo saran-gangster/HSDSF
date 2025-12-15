@@ -1,0 +1,10 @@
+tmp/
+reports/
+*.dis
+*.strings
+*.meta
+*.symbols
+*.json
+*.md
+!ground_truth.md
+!README.md
