@@ -50,6 +50,7 @@ phase2/*.md
 !phase2/ground_truth.md
 !phase2/README.md
 !phase2/planforphase2.md
+!phase2/RESULTS.md
 
 # Compiled binaries
 phase2/firmware_clean
