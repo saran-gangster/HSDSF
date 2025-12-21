@@ -41,6 +41,19 @@ Key flags:
 - `threshold.json`: anomaly threshold derived from train errors
 - `metrics.json`: training/eval summary (losses, AUC if labels available)
 
+## Evaluation plots
+
+Generate plots from an existing artifacts directory:
+
+```bash
+python phase4/plot_evaluation.py --artifacts-dir phase4/artifacts
+```
+
+This writes images to `phase4/artifacts/plots/`:
+- `reconstruction_error_distribution.png`
+- `roc_curve.png`
+- `pr_curve.png`
+
 ## Running in Google Colab (GPU)
 1) Start a GPU runtime (Runtime → Change runtime type → GPU).
 2) Pull the repo (or upload a zip) and install requirements:

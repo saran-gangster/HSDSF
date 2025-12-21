@@ -12,11 +12,11 @@ source .venv/bin/activate
 pip install -r phase2/requirements.txt
 ```
 
-3) Set up Cerebras API key in `.env` (already configured):
+3) Set up Cerebras API key in `.env` (do not commit secrets):
 
 ```bash
 # .env file contains:
-CEREBRAS_API_KEY=csk-wfp4yhk8xyhc35c2rvwdrx2yhy4rkk49rtdx83m3jkkhj2rm
+CEREBRAS_API_KEY=YOUR_KEY_HERE
 ```
 
 4) Build the sample binaries:
