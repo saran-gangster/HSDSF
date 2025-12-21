@@ -47,6 +47,11 @@ Key flags:
 4) Run the training command above with `--device cuda --export-onnx`.
 5) Download `phase4/artifacts/` for TensorRT conversion on Jetson.
 
+If you see an ONNX export error about `onnxscript`, install extras:
+```bash
+pip install onnx onnxscript
+```
+
 ## Next steps toward deployment
 - Convert `model.onnx` to a TensorRT engine on Jetson (e.g., `trtexec --onnx=model.onnx --saveEngine=model.plan`).
 - Implement real-time monitor that mirrors Phase 3 feature extraction, applies `scaler.pkl`, and scores windows against `threshold.json` (see Phase 4 tasks in repo root README).

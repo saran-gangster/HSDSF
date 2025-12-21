@@ -97,6 +97,14 @@ def select_feature_columns(df: pd.DataFrame) -> List[str]:
     return numeric
 
 
+def sanitize_numeric(df: pd.DataFrame, features: Sequence[str]) -> pd.DataFrame:
+    """Replace inf/NaN, forward/back fill, then zero-fill remaining gaps."""
+    clean = df.copy()
+    clean[features] = clean[features].replace([np.inf, -np.inf], np.nan)
+    clean[features] = clean[features].ffill().bfill().fillna(0.0)
+    return clean
+
+
 def build_windows(
     df: pd.DataFrame,
     features: Sequence[str],
@@ -217,14 +225,18 @@ def save_artifacts(
     (output_dir / "config.json").write_text(json.dumps(config, indent=2))
     if export_onnx:
         dummy = torch.zeros(1, window_size, len(features))
-        torch.onnx.export(
-            model,
-            dummy,
-            output_dir / "model.onnx",
-            input_names=["input"],
-            output_names=["reconstruction"],
-            opset_version=17,
-        )
+        try:
+            torch.onnx.export(
+                model,
+                dummy,
+                output_dir / "model.onnx",
+                input_names=["input"],
+                output_names=["reconstruction"],
+                opset_version=17,
+            )
+        except ModuleNotFoundError as exc:
+            print("ONNX export skipped: install onnx and onnxscript (pip install onnx onnxscript)")
+            print(f"Reason: {exc}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -254,6 +266,7 @@ def main() -> None:
 
     df = load_runs(args.runs_dir)
     feature_cols = select_feature_columns(df)
+    df = sanitize_numeric(df, feature_cols)
 
     windows, labels, run_ids, trojan_flags = build_windows(
         df, feature_cols, window_size=args.window_size, stride=args.window_stride
@@ -265,10 +278,14 @@ def main() -> None:
 
     scaler = StandardScaler()
     train_flat = windows[benign_mask].reshape(-1, windows.shape[2])
+    if np.isnan(train_flat).any():
+        raise ValueError("Training data contains NaN after sanitization; check inputs")
     scaler.fit(train_flat)
     windows_scaled = windows.reshape(-1, windows.shape[2])
     windows_scaled = scaler.transform(windows_scaled)
     windows_scaled = windows_scaled.reshape(windows.shape)
+    if np.isnan(windows_scaled).any():
+        raise ValueError("Scaled windows contain NaN; aborting")
 
     benign_indices = np.nonzero(benign_mask)[0]
     np.random.shuffle(benign_indices)
