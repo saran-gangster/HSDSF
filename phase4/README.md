@@ -30,6 +30,7 @@ Key flags:
 - `--threshold-percentile`: percentile of train reconstruction error used as decision threshold (default 99)
 - `--threshold-source`: whether to calibrate threshold on benign `train` or benign `val` errors
 - `--split-by`: `run` (recommended) prevents overlap leakage; `window` keeps the old behavior
+- `--anomaly-mode`: `nontrain` treats any non-training label as anomalous; `trojan` evaluates trojan detection only
 
 3) Outputs land in `phase4/artifacts/`:
 - `model.pt`: LSTM autoencoder weights

@@ -22,6 +22,10 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 
+def is_trojan_label(label: str) -> bool:
+    return str(label).startswith("trojan")
+
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -309,6 +313,16 @@ def parse_args() -> argparse.Namespace:
         default="train",
         help="Which benign split to use for threshold calibration",
     )
+    parser.add_argument(
+        "--anomaly-mode",
+        choices=["nontrain", "trojan"],
+        default="nontrain",
+        help=(
+            "Define what counts as anomalous in evaluation: "
+            "'nontrain' = label not in --train-labels OR trojan_active; "
+            "'trojan' = trojan label/intervals only"
+        ),
+    )
     parser.add_argument("--export-onnx", action="store_true")
     parser.add_argument("--onnx-opset", type=int, default=18)
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
@@ -405,10 +419,16 @@ def main() -> None:
 
     test_labels = [labels[i] for i in test_indices]
     test_trojan_flags = trojan_flags[test_indices]
-    y_true = np.array(
-        [lbl not in args.train_labels or trojan for lbl, trojan in zip(test_labels, test_trojan_flags)],
-        dtype=int,
-    )
+    if args.anomaly_mode == "trojan":
+        y_true = np.array(
+            [is_trojan_label(lbl) or bool(trojan) for lbl, trojan in zip(test_labels, test_trojan_flags)],
+            dtype=int,
+        )
+    else:
+        y_true = np.array(
+            [lbl not in args.train_labels or bool(trojan) for lbl, trojan in zip(test_labels, test_trojan_flags)],
+            dtype=int,
+        )
     y_pred = (test_errors >= threshold).astype(int)
 
     report = classification_report(y_true, y_pred, output_dict=True, zero_division=0)
@@ -423,11 +443,13 @@ def main() -> None:
         "threshold": threshold,
         "threshold_percentile": args.threshold_percentile,
         "threshold_source": args.threshold_source,
+        "anomaly_mode": args.anomaly_mode,
         "classification_report": report,
         "auc": auc,
         "num_train_windows": int(len(train_ds)),
         "num_val_windows": int(len(val_ds)),
         "num_test_windows": int(len(test_ds)),
+        "test_label_counts": dict(pd.Series(test_labels).value_counts()),
     }
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -448,6 +470,7 @@ def main() -> None:
         "latent_dim": args.latent_dim,
         "threshold_percentile": args.threshold_percentile,
         "threshold_source": args.threshold_source,
+        "anomaly_mode": args.anomaly_mode,
         "onnx_opset": args.onnx_opset,
         "device": str(device),
         "seed": args.seed,
