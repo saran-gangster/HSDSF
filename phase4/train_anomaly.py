@@ -193,6 +193,48 @@ def train_model(
     return train_losses, val_losses
 
 
+def split_benign_runs(
+    df: pd.DataFrame,
+    train_labels: Sequence[str],
+    val_fraction: float,
+    test_fraction: float,
+    seed: int,
+) -> Tuple[List[str], List[str], List[str]]:
+    """Split benign runs into train/val/test by run_id.
+
+    Trojan runs (any trojan_active=True) are excluded from benign splits.
+    """
+    run_meta = (
+        df.groupby("run_id")
+        .agg(label=("label", "first"), trojan_any=("trojan_active", "any"))
+        .reset_index()
+    )
+    benign_runs = run_meta[(run_meta["label"].isin(train_labels)) & (~run_meta["trojan_any"])][
+        "run_id"
+    ].tolist()
+    if len(benign_runs) < 3:
+        raise ValueError(
+            f"Need at least 3 benign runs for train/val/test split; found {len(benign_runs)}"
+        )
+
+    rng = np.random.default_rng(seed)
+    rng.shuffle(benign_runs)
+
+    n = len(benign_runs)
+    n_val = max(1, int(round(n * val_fraction)))
+    n_test = max(1, int(round(n * test_fraction)))
+    if n_val + n_test >= n:
+        # Ensure at least one train run remains.
+        n_test = max(1, n - n_val - 1)
+        if n_val + n_test >= n:
+            n_val = max(1, n - n_test - 1)
+
+    val_runs = benign_runs[:n_val]
+    test_runs = benign_runs[n_val : n_val + n_test]
+    train_runs = benign_runs[n_val + n_test :]
+    return train_runs, val_runs, test_runs
+
+
 def reconstruction_errors(model: nn.Module, loader: DataLoader, device: torch.device) -> np.ndarray:
     criterion = nn.MSELoss(reduction="none")
     errors: List[float] = []
@@ -215,6 +257,7 @@ def save_artifacts(
     config: Dict,
     export_onnx: bool,
     window_size: int,
+    onnx_opset: int,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), output_dir / "model.pt")
@@ -232,7 +275,7 @@ def save_artifacts(
                 output_dir / "model.onnx",
                 input_names=["input"],
                 output_names=["reconstruction"],
-                opset_version=17,
+                opset_version=onnx_opset,
             )
         except ModuleNotFoundError as exc:
             print("ONNX export skipped: install onnx and onnxscript (pip install onnx onnxscript)")
@@ -247,13 +290,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--window-stride", type=int, default=5, help="Stride between windows in samples")
     parser.add_argument("--train-labels", nargs="*", default=["idle", "normal"], help="Labels treated as benign for training")
     parser.add_argument("--val-fraction", type=float, default=0.2, help="Fraction of train windows used for validation")
+    parser.add_argument("--test-fraction", type=float, default=0.2, help="Fraction of benign runs held out for testing")
+    parser.add_argument(
+        "--split-by",
+        choices=["run", "window"],
+        default="run",
+        help="How to split benign data for train/val: by run (recommended) or by window",
+    )
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--hidden-dim", type=int, default=64)
     parser.add_argument("--latent-dim", type=int, default=32)
     parser.add_argument("--threshold-percentile", type=float, default=99.0, help="Percentile of train errors used as threshold")
+    parser.add_argument(
+        "--threshold-source",
+        choices=["train", "val"],
+        default="train",
+        help="Which benign split to use for threshold calibration",
+    )
     parser.add_argument("--export-onnx", action="store_true")
+    parser.add_argument("--onnx-opset", type=int, default=18)
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
@@ -287,19 +344,46 @@ def main() -> None:
     if np.isnan(windows_scaled).any():
         raise ValueError("Scaled windows contain NaN; aborting")
 
-    benign_indices = np.nonzero(benign_mask)[0]
-    np.random.shuffle(benign_indices)
-    val_size = max(1, int(len(benign_indices) * args.val_fraction))
-    val_indices = benign_indices[:val_size]
-    train_indices = benign_indices[val_size:]
+    if args.split_by == "window":
+        benign_indices = np.nonzero(benign_mask)[0]
+        np.random.shuffle(benign_indices)
+        val_size = max(1, int(len(benign_indices) * args.val_fraction))
+        val_indices = benign_indices[:val_size]
+        train_indices = benign_indices[val_size:]
+        train_set = set(train_indices.tolist())
+        val_set = set(val_indices.tolist())
+        test_indices = np.array([i for i in range(len(windows_scaled)) if i not in train_set and i not in val_set])
+    else:
+        train_runs, val_runs, test_runs = split_benign_runs(
+            df=df,
+            train_labels=args.train_labels,
+            val_fraction=args.val_fraction,
+            test_fraction=args.test_fraction,
+            seed=args.seed,
+        )
+        train_set = set(train_runs)
+        val_set = set(val_runs)
+        test_set = set(test_runs)
+
+        train_indices = np.array([i for i, rid in enumerate(run_ids) if rid in train_set and benign_mask[i]])
+        val_indices = np.array([i for i, rid in enumerate(run_ids) if rid in val_set and benign_mask[i]])
+
+        # Test includes: (a) benign test runs + (b) all non-benign runs (trojan labels or any trojan_active windows)
+        test_indices = np.array(
+            [
+                i
+                for i, (rid, lbl, trojan_any) in enumerate(zip(run_ids, labels, trojan_flags))
+                if (rid in test_set) or (lbl not in args.train_labels) or trojan_any
+            ]
+        )
 
     train_ds = WindowDataset(windows_scaled[train_indices])
     val_ds = WindowDataset(windows_scaled[val_indices])
-    all_ds = WindowDataset(windows_scaled)
+    test_ds = WindowDataset(windows_scaled[test_indices])
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
-    all_loader = DataLoader(all_ds, batch_size=args.batch_size, shuffle=False)
+    test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
 
     model = LSTMAutoencoder(len(feature_cols), hidden_dim=args.hidden_dim, latent_dim=args.latent_dim).to(device)
 
@@ -313,15 +397,23 @@ def main() -> None:
     )
 
     train_errors = reconstruction_errors(model, train_loader, device)
-    all_errors = reconstruction_errors(model, all_loader, device)
+    val_errors = reconstruction_errors(model, val_loader, device)
+    test_errors = reconstruction_errors(model, test_loader, device)
 
-    threshold = float(np.percentile(train_errors, args.threshold_percentile))
-    y_true = np.array([lbl not in args.train_labels or trojan for lbl, trojan in zip(labels, trojan_flags)], dtype=int)
-    y_pred = (all_errors >= threshold).astype(int)
+    calib_errors = train_errors if args.threshold_source == "train" else val_errors
+    threshold = float(np.percentile(calib_errors, args.threshold_percentile))
+
+    test_labels = [labels[i] for i in test_indices]
+    test_trojan_flags = trojan_flags[test_indices]
+    y_true = np.array(
+        [lbl not in args.train_labels or trojan for lbl, trojan in zip(test_labels, test_trojan_flags)],
+        dtype=int,
+    )
+    y_pred = (test_errors >= threshold).astype(int)
 
     report = classification_report(y_true, y_pred, output_dict=True, zero_division=0)
     try:
-        auc = float(roc_auc_score(y_true, all_errors)) if len(np.unique(y_true)) > 1 else math.nan
+        auc = float(roc_auc_score(y_true, test_errors)) if len(np.unique(y_true)) > 1 else math.nan
     except Exception:
         auc = math.nan
 
@@ -330,11 +422,12 @@ def main() -> None:
         "val_loss_last": val_losses[-1],
         "threshold": threshold,
         "threshold_percentile": args.threshold_percentile,
+        "threshold_source": args.threshold_source,
         "classification_report": report,
         "auc": auc,
         "num_train_windows": int(len(train_ds)),
         "num_val_windows": int(len(val_ds)),
-        "num_all_windows": int(len(all_ds)),
+        "num_test_windows": int(len(test_ds)),
     }
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -346,12 +439,16 @@ def main() -> None:
         "window_stride": args.window_stride,
         "train_labels": args.train_labels,
         "val_fraction": args.val_fraction,
+        "test_fraction": args.test_fraction,
+        "split_by": args.split_by,
         "batch_size": args.batch_size,
         "epochs": args.epochs,
         "lr": args.lr,
         "hidden_dim": args.hidden_dim,
         "latent_dim": args.latent_dim,
         "threshold_percentile": args.threshold_percentile,
+        "threshold_source": args.threshold_source,
+        "onnx_opset": args.onnx_opset,
         "device": str(device),
         "seed": args.seed,
     }
@@ -365,6 +462,7 @@ def main() -> None:
         config=config,
         export_onnx=args.export_onnx,
         window_size=args.window_size,
+        onnx_opset=args.onnx_opset,
     )
 
     print("Training complete")

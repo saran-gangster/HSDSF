@@ -28,6 +28,8 @@ Key flags:
 - `--window-stride`: default 5 → 0.5s step
 - `--train-labels`: benign classes (default `idle normal`)
 - `--threshold-percentile`: percentile of train reconstruction error used as decision threshold (default 99)
+- `--threshold-source`: whether to calibrate threshold on benign `train` or benign `val` errors
+- `--split-by`: `run` (recommended) prevents overlap leakage; `window` keeps the old behavior
 
 3) Outputs land in `phase4/artifacts/`:
 - `model.pt`: LSTM autoencoder weights
