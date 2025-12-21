@@ -35,6 +35,8 @@ def main():
     ap.add_argument("--no-tegrastats", action="store_true")
     ap.add_argument("--tegrastats-cmd", type=str, default=None)
     ap.add_argument("--save-raw", action="store_true")
+    ap.add_argument("--simulator-mode", action="store_true", help="Use simulator instead of real hardware")
+    ap.add_argument("--simulator-port", type=int, default=45215, help="Simulator HTTP port")
     args = ap.parse_args()
 
     run_id = time.strftime("%Y%m%d_%H%M%S")
@@ -59,6 +61,14 @@ def main():
         str(args.tegrastats_ms),
     ]
 
+    if args.simulator_mode:
+        collector_cmd.extend(["--simulator-mode", "--simulator-port", str(args.simulator_port)])
+        collector_cmd.extend(["--sysfs-root", str(script_dir / "mock_sysfs")])
+        # Use fake_tegrastats for simulator
+        if not args.no_tegrastats:
+            tegra_script = str(script_dir / "fake_tegrastats.sh")
+            collector_cmd.extend(["--tegrastats-cmd", f"TEGRA_SIM_PORT={args.simulator_port} {tegra_script} --interval {args.tegrastats_ms}"])
+    
     if args.no_perf:
         collector_cmd.append("--no-perf")
     if args.no_tegrastats:
@@ -77,6 +87,8 @@ def main():
         "--duration",
         str(args.duration),
     ]
+    if args.simulator_mode:
+        normal_cmd.extend(["--simulator-mode", "--simulator-port", str(args.simulator_port)])
 
     trojan_cmd_base = [
         sys.executable,
@@ -92,6 +104,8 @@ def main():
     ]
     if args.trojan_overlay:
         trojan_cmd_base.append("--with-baseline")
+    if args.simulator_mode:
+        trojan_cmd_base.extend(["--simulator-mode", "--simulator-port", str(args.simulator_port)])
 
     try:
         if args.label == "idle":

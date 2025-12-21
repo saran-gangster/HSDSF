@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -71,6 +72,29 @@ def perf_reader_thread(stream, latest: Dict[str, Any], lock: threading.Lock, sto
                 latest[f"perf_{k}"] = v
 
 
+def simulator_perf_reader_thread(port: int, latest: Dict[str, Any], lock: threading.Lock, stop: threading.Event, interval_s: float):
+    """Poll simulator HTTP API for perf counters"""
+    prev_counters = {}
+    while not stop.is_set():
+        try:
+            url = f"http://127.0.0.1:{port}/v1/telemetry"
+            with urllib.request.urlopen(url, timeout=2.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            
+            counters = data.get("counters_total", {})
+            # Compute deltas (perf stat -I style)
+            with lock:
+                for ev, total in counters.items():
+                    # Normalize hyphens to underscores for CSV compatibility
+                    ev_normalized = ev.replace('-', '_')
+                    if ev in prev_counters:
+                        latest[f"perf_{ev_normalized}"] = total - prev_counters[ev]
+                    prev_counters[ev] = total
+        except Exception:
+            pass
+        time.sleep(interval_s)
+
+
 def tegrastats_reader_thread(stream, latest: Dict[str, Any], lock: threading.Lock, stop: threading.Event, raw_fp=None):
     for line in iter(stream.readline, ""):
         if stop.is_set():
@@ -109,7 +133,13 @@ def main(argv: Optional[Iterable[str]] = None):
     ap.add_argument("--tegrastats-cmd", type=str, default=None, help="Alternate tegrastats command for testing")
     ap.add_argument("--save-raw", action="store_true", help="Save raw perf/tegrastats streams next to CSV")
     ap.add_argument("--stop-after", type=float, default=None, help="Optional hard stop after N seconds")
+    ap.add_argument("--simulator-mode", action="store_true", help="Use simulator HTTP API instead of real perf")
+    ap.add_argument("--simulator-port", type=int, default=45215, help="Simulator HTTP port")
+    ap.add_argument("--sysfs-root", type=Path, default=None, help="Override sysfs root (use simulator mock sysfs)")
     args = ap.parse_args(list(argv) if argv is not None else None)
+
+    if args.simulator_mode and args.sysfs_root is None:
+        args.sysfs_root = script_dir / "mock_sysfs"
 
     outpath = Path(args.out)
     outpath.parent.mkdir(parents=True, exist_ok=True)
@@ -123,7 +153,7 @@ def main(argv: Optional[Iterable[str]] = None):
     raw_perf_path = outpath.with_suffix(".perf.log") if args.save_raw else None
     raw_tegrastats_path = outpath.with_suffix(".tegrastats.log") if args.save_raw else None
 
-    thermal_zones = discover_thermal_zones()
+    thermal_zones = discover_thermal_zones(args.sysfs_root)
 
     latest: Dict[str, Any] = {}
     lock = threading.Lock()
@@ -135,7 +165,7 @@ def main(argv: Optional[Iterable[str]] = None):
     tegra_thread = None
 
     perf_cmd: List[str] = []
-    if not args.no_perf and perf_target:
+    if not args.no_perf and not args.simulator_mode and perf_target:
         perf_events_str = ",".join(perf_events)
         perf_cmd = [
             "bash",
@@ -159,7 +189,15 @@ def main(argv: Optional[Iterable[str]] = None):
         perf_fp = maybe_open(raw_perf_path)
         tegra_fp = maybe_open(raw_tegrastats_path)
 
-        if perf_cmd:
+        if args.simulator_mode:
+            # Use simulator HTTP API for perf counters
+            perf_thread = threading.Thread(
+                target=simulator_perf_reader_thread,
+                args=(args.simulator_port, latest, lock, stop_event, args.perf_ms / 1000.0),
+                daemon=True,
+            )
+            perf_thread.start()
+        elif perf_cmd:
             try:
                 perf_p = start_subprocess(perf_cmd, capture_stdout=False, capture_stderr=True)
                 perf_thread = threading.Thread(
@@ -206,6 +244,9 @@ def main(argv: Optional[Iterable[str]] = None):
 
         with outpath.open("w", newline="") as f:
             writer: Optional[csv.DictWriter] = None
+            warmup_rows = 0  # Collect a few rows before writing header
+            header_written = False
+            
             while True:
                 now = time.monotonic()
                 if args.stop_after and (now - t0) >= args.stop_after:
@@ -225,7 +266,8 @@ def main(argv: Optional[Iterable[str]] = None):
                 if isinstance(cyc, (int, float)) and cyc and isinstance(ins, (int, float)):
                     snap["perf_ipc"] = ins / cyc
 
-                br = snap.get("perf_branches")
+                # Use branch_instructions (from simulator) or branches (from real perf)
+                br = snap.get("perf_branch_instructions") or snap.get("perf_branches")
                 brm = snap.get("perf_branch_misses")
                 if isinstance(br, (int, float)) and br and isinstance(brm, (int, float)):
                     snap["perf_branch_miss_rate"] = brm / br
@@ -243,10 +285,17 @@ def main(argv: Optional[Iterable[str]] = None):
                 row.update(sys_vals)
                 row.update(snap)
 
-                if writer is None:
+                # Wait for at least 3 warmup iterations to let all data sources populate
+                if not header_written:
+                    warmup_rows += 1
+                    if warmup_rows < 3:
+                        next_t += args.dt
+                        continue
+                    # Now write header with full field set
                     fieldnames = sorted(row.keys())
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     writer.writeheader()
+                    header_written = True
 
                 for k in fieldnames:
                     row.setdefault(k, "")

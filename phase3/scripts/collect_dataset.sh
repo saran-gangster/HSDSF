@@ -20,6 +20,8 @@ NO_TEGRASTATS=""
 FAKE_TEGRASTATS=""
 SAVE_RAW=""
 DRY_RUN=false
+SIMULATOR_MODE=""
+SIMULATOR_PORT=45215
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -31,6 +33,14 @@ while [[ $# -gt 0 ]]; do
         --fake-tegrastats)
             FAKE_TEGRASTATS="--tegrastats-cmd ${SCRIPT_DIR}/fake_tegrastats.sh"
             shift
+            ;;
+        --simulator-mode)
+            SIMULATOR_MODE="--simulator-mode"
+            shift
+            ;;
+        --simulator-port)
+            SIMULATOR_PORT="$2"
+            shift 2
             ;;
         --save-raw)
             SAVE_RAW="--save-raw"
@@ -88,11 +98,16 @@ run_exp() {
     echo "Start time: $(date)"
     
     CMD=(python3 scripts/run_experiment.py
-        --label "$label"
-        --duration "$DURATION"
-        $NO_TEGRASTATS
-        $FAKE_TEGRASTATS
-        $SAVE_RAW)
+         --label "$label"
+         --duration "$DURATION"
+         $NO_TEGRASTATS
+         $FAKE_TEGRASTATS
+         $SAVE_RAW
+         $SIMULATOR_MODE)
+    
+    if [ -n "$SIMULATOR_PORT" ] && [ -n "$SIMULATOR_MODE" ]; then
+        CMD+=(--simulator-port "$SIMULATOR_PORT")
+    fi
     
     if [ -n "$variant" ]; then
         CMD+=(--trojan-variant "$variant")

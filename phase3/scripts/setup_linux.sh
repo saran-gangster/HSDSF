@@ -28,7 +28,7 @@ sudo apt-get install -y linux-tools-${KERNEL_VERSION} || echo "Note: Exact kerne
 
 # Install Python dependencies
 echo "4. Installing Python dependencies from requirements.txt..."
-pip3 install --user -r "${PHASE3_ROOT}/requirements.txt"
+pip3 install -r "${PHASE3_ROOT}/requirements.txt"
 
 # Verify perf is available
 echo "5. Verifying perf availability..."

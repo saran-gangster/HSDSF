@@ -1,11 +1,12 @@
 #!/bin/bash
-# Fake tegrastats for non-Jetson testing
-# Prints sample tegrastats-like output at specified interval
+# Simulator-backed tegrastats replacement for Phase 3 data collection
+# Polls jetson_sim.py HTTP API and formats output like tegrastats
 # Usage: ./fake_tegrastats.sh --interval <milliseconds>
 
+PORT="${TEGRA_SIM_PORT:-45215}"
 INTERVAL_MS=500
 
-# Parse arguments (minimal tegrastats compatibility)
+# Parse arguments (tegrastats compatibility)
 while [[ $# -gt 0 ]]; do
     case $1 in
         --interval)
@@ -20,25 +21,58 @@ done
 
 INTERVAL_S=$(echo "scale=3; $INTERVAL_MS / 1000" | bc)
 
-echo "Fake tegrastats running with interval: ${INTERVAL_MS}ms" >&2
+echo "Simulator tegrastats running on port ${PORT} with interval: ${INTERVAL_MS}ms" >&2
 
 while true; do
-    # Generate realistic-looking random values
-    RAM=$((RANDOM % 4096 + 2048))
-    CPU1=$((RANDOM % 100))
-    CPU2=$((RANDOM % 100))
-    CPU3=$((RANDOM % 100))
-    CPU4=$((RANDOM % 100))
-    GPU=$((RANDOM % 100))
-    EMC=$((RANDOM % 100))
-    TEMP_PLL=$((RANDOM % 20 + 40))
-    TEMP_CPU=$((RANDOM % 20 + 45))
-    TEMP_GPU=$((RANDOM % 25 + 40))
-    TEMP_AO=$((RANDOM % 15 + 35))
-    PWR=$((RANDOM % 5000 + 2000))
+    # Poll simulator API
+    DATA=$(curl -s "http://127.0.0.1:${PORT}/v1/telemetry" 2>/dev/null)
+    if [ $? -ne 0 ] || [ -z "$DATA" ]; then
+        sleep "$INTERVAL_S"
+        continue
+    fi
+
+    # Extract fields using grep/sed for portability
+    RAM_USED=$(echo "$DATA" | grep -o '"ram_used_mb":[0-9.]*' | cut -d: -f2 | head -1)
+    RAM_TOTAL=$(echo "$DATA" | grep -o '"ram_total_mb":[0-9]*' | cut -d: -f2 | head -1)
+    GPU_UTIL=$(echo "$DATA" | grep -o '"gpu_util":[0-9.]*' | cut -d: -f2 | head -1)
+    EMC_UTIL=$(echo "$DATA" | grep -o '"emc_util":[0-9.]*' | cut -d: -f2 | head -1)
     
-    # Format similar to real tegrastats output
-    echo "RAM ${RAM}/8192MB (lfb 512x4MB) CPU [${CPU1}%@1420,${CPU2}%@1420,${CPU3}%@1420,${CPU4}%@1420] EMC_FREQ ${EMC}%@1600 GR3D_FREQ ${GPU}%@1300 PLL@${TEMP_PLL}C CPU@${TEMP_CPU}C PMIC@${TEMP_CPU}C GPU@${TEMP_GPU}C AO@${TEMP_AO}C thermal@${TEMP_CPU}C POM_5V_IN ${PWR}/${PWR}mW POM_5V_GPU ${PWR}/${PWR}mW"
+    # CPU utils sum from array
+    CPU_UTILS=$(echo "$DATA" | grep -o '"cpu_util":\[[^]]*\]' | sed 's/.*\[\([^]]*\)\].*/\1/' | tr -d ' ')
+    CPU_SUM=0
+    for u in $(echo "$CPU_UTILS" | tr ',' ' '); do
+        CPU_SUM=$(echo "$CPU_SUM + $u" | bc)
+    done
+    
+    TEMP_CPU=$(echo "$DATA" | grep -o '"temp_cpu_c":[0-9.]*' | cut -d: -f2 | head -1)
+    TEMP_GPU=$(echo "$DATA" | grep -o '"temp_gpu_c":[0-9.]*' | cut -d: -f2 | head -1)
+    TEMP_AUX=$(echo "$DATA" | grep -o '"temp_aux_c":[0-9.]*' | cut -d: -f2 | head -1)
+    TEMP_TTP=$(echo "$DATA" | grep -o '"temp_ttp_c":[0-9.]*' | cut -d: -f2 | head -1)
+    
+    P_SYS=$(echo "$DATA" | grep -o '"p_sys5v_mw":[0-9.]*' | cut -d: -f2 | head -1)
+    P_CPU=$(echo "$DATA" | grep -o '"p_cpu_mw":[0-9.]*' | cut -d: -f2 | head -1)
+    P_GPU=$(echo "$DATA" | grep -o '"p_gpu_mw":[0-9.]*' | cut -d: -f2 | head -1)
+    P_SOC=$(echo "$DATA" | grep -o '"p_soc_mw":[0-9.]*' | cut -d: -f2 | head -1)
+    P_CV=$(echo "$DATA" | grep -o '"p_cv_mw":[0-9.]*' | cut -d: -f2 | head -1)
+    
+    GPU_FREQ=$(echo "$DATA" | grep -o '"gpu_freq_mhz":[0-9]*' | cut -d: -f2 | head -1)
+    EMC_FREQ=$(echo "$DATA" | grep -o '"emc_freq_mhz":[0-9]*' | cut -d: -f2 | head -1)
+    
+    # Format like tegrastats output
+    printf "RAM %d/%dMB (lfb 512x4MB) CPU [" "${RAM_USED%%.*}" "${RAM_TOTAL}"
+    # Individual CPU utils
+    first=1
+    for u in $(echo "$CPU_UTILS" | tr ',' ' '); do
+        [ $first -eq 0 ] && printf ","
+        printf "%d%%@1420" "${u%%.*}"
+        first=0
+    done
+    printf "] EMC_FREQ %d%%@%d GR3D_FREQ %d%%@%d " \
+        "${EMC_UTIL%%.*}" "${EMC_FREQ}" "${GPU_UTIL%%.*}" "${GPU_FREQ}"
+    printf "CPU@%.1fC GPU@%.1fC AUX@%.1fC TTP@%.1fC " \
+        "${TEMP_CPU}" "${TEMP_GPU}" "${TEMP_AUX}" "${TEMP_TTP}"
+    printf "POM_5V_IN %dmW VDD_CPU %dmW VDD_GPU %dmW VDD_SOC %dmW VDD_CV %dmW\n" \
+        "${P_SYS%%.*}" "${P_CPU%%.*}" "${P_GPU%%.*}" "${P_SOC%%.*}" "${P_CV%%.*}"
     
     sleep "$INTERVAL_S"
 done

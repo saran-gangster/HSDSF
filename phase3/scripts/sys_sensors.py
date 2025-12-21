@@ -1,10 +1,13 @@
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
-def discover_thermal_zones() -> List[Tuple[str, Path]]:
+def discover_thermal_zones(root: Optional[Path] = None) -> List[Tuple[str, Path]]:
     zones: List[Tuple[str, Path]] = []
-    base = Path("/sys/class/thermal")
+    if root:
+        base = Path(root) / "class" / "thermal"
+    else:
+        base = Path("/sys/class/thermal")
     if not base.exists():
         return zones
     for zdir in base.glob("thermal_zone*"):
