@@ -437,6 +437,9 @@ def main() -> None:
     except Exception:
         auc = math.nan
 
+    label_counts_series = pd.Series(test_labels).value_counts()
+    test_label_counts = {str(k): int(v) for k, v in label_counts_series.items()}
+
     metrics = {
         "train_loss_last": train_losses[-1],
         "val_loss_last": val_losses[-1],
@@ -449,7 +452,7 @@ def main() -> None:
         "num_train_windows": int(len(train_ds)),
         "num_val_windows": int(len(val_ds)),
         "num_test_windows": int(len(test_ds)),
-        "test_label_counts": dict(pd.Series(test_labels).value_counts()),
+        "test_label_counts": test_label_counts,
     }
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
