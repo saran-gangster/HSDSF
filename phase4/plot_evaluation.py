@@ -11,6 +11,7 @@ Uses artifacts produced by phase4/train_anomaly.py.
 import argparse
 import json
 import pickle
+import sys
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
@@ -29,7 +30,11 @@ from sklearn.metrics import (
 )
 from torch.utils.data import DataLoader
 
-from phase4.train_anomaly import (
+THIS_DIR = Path(__file__).resolve().parent
+if str(THIS_DIR) not in sys.path:
+    sys.path.insert(0, str(THIS_DIR))
+
+from train_anomaly import (
     LSTMAutoencoder,
     build_windows,
     is_trojan_label,
