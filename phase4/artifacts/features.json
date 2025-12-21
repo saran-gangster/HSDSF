@@ -1,0 +1,23 @@
+[
+  "perf_L1_dcache_load_misses",
+  "perf_L1_dcache_loads",
+  "perf_LLC_load_misses",
+  "perf_LLC_loads",
+  "perf_branch_instructions",
+  "perf_branch_miss_rate",
+  "perf_branch_misses",
+  "perf_cache_miss_rate",
+  "perf_cache_misses",
+  "perf_cache_references",
+  "perf_context_switches",
+  "perf_cpu_migrations",
+  "perf_cycles",
+  "perf_instructions",
+  "perf_ipc",
+  "perf_page_faults",
+  "temp_aux-therm_c",
+  "temp_cpu-therm_c",
+  "temp_gpu-therm_c",
+  "temp_thermal-fan-est_c",
+  "temp_ttp-therm_c"
+]
