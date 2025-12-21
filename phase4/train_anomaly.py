@@ -204,38 +204,48 @@ def split_benign_runs(
     test_fraction: float,
     seed: int,
 ) -> Tuple[List[str], List[str], List[str]]:
-    """Split benign runs into train/val/test by run_id.
+    """Split benign runs into train/val/test by run_id (stratified by label).
 
     Trojan runs (any trojan_active=True) are excluded from benign splits.
+    This tries to keep each benign label represented across splits when possible.
     """
     run_meta = (
         df.groupby("run_id")
         .agg(label=("label", "first"), trojan_any=("trojan_active", "any"))
         .reset_index()
     )
-    benign_runs = run_meta[(run_meta["label"].isin(train_labels)) & (~run_meta["trojan_any"])][
-        "run_id"
-    ].tolist()
-    if len(benign_runs) < 3:
-        raise ValueError(
-            f"Need at least 3 benign runs for train/val/test split; found {len(benign_runs)}"
-        )
+    benign_meta = run_meta[(run_meta["label"].isin(train_labels)) & (~run_meta["trojan_any"])].copy()
+    if len(benign_meta) < 3:
+        raise ValueError(f"Need at least 3 benign runs for train/val/test split; found {len(benign_meta)}")
 
     rng = np.random.default_rng(seed)
-    rng.shuffle(benign_runs)
 
-    n = len(benign_runs)
-    n_val = max(1, int(round(n * val_fraction)))
-    n_test = max(1, int(round(n * test_fraction)))
-    if n_val + n_test >= n:
-        # Ensure at least one train run remains.
-        n_test = max(1, n - n_val - 1)
+    train_runs: List[str] = []
+    val_runs: List[str] = []
+    test_runs: List[str] = []
+
+    for label, g in benign_meta.groupby("label"):
+        runs = g["run_id"].tolist()
+        rng.shuffle(runs)
+        n = len(runs)
+        if n == 1:
+            # Can't split; keep in train.
+            train_runs.extend(runs)
+            continue
+        n_val = max(1, int(round(n * val_fraction)))
+        n_test = max(1, int(round(n * test_fraction)))
         if n_val + n_test >= n:
-            n_val = max(1, n - n_test - 1)
+            n_test = max(1, n - n_val - 1)
+            if n_val + n_test >= n:
+                n_val = max(1, n - n_test - 1)
+        val_runs.extend(runs[:n_val])
+        test_runs.extend(runs[n_val : n_val + n_test])
+        train_runs.extend(runs[n_val + n_test :])
 
-    val_runs = benign_runs[:n_val]
-    test_runs = benign_runs[n_val : n_val + n_test]
-    train_runs = benign_runs[n_val + n_test :]
+    # Final sanity: ensure non-empty train.
+    if not train_runs:
+        # Move one run from val to train.
+        train_runs.append(val_runs.pop())
     return train_runs, val_runs, test_runs
 
 
@@ -293,6 +303,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--window-size", type=int, default=50, help="Samples per window (dt ~0.1s → 5s)")
     parser.add_argument("--window-stride", type=int, default=5, help="Stride between windows in samples")
     parser.add_argument("--train-labels", nargs="*", default=["idle", "normal"], help="Labels treated as benign for training")
+    parser.add_argument(
+        "--benign-eval-labels",
+        nargs="*",
+        default=None,
+        help="Which benign labels to include in the test set evaluation (default: same as --train-labels)",
+    )
     parser.add_argument("--val-fraction", type=float, default=0.2, help="Fraction of train windows used for validation")
     parser.add_argument("--test-fraction", type=float, default=0.2, help="Fraction of benign runs held out for testing")
     parser.add_argument(
@@ -334,6 +350,8 @@ def main() -> None:
     args = parse_args()
     set_seed(args.seed)
     device = torch.device("cuda" if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()) else "cpu")
+
+    benign_eval_labels = args.train_labels if args.benign_eval_labels is None else args.benign_eval_labels
 
     df = load_runs(args.runs_dir)
     feature_cols = select_feature_columns(df)
@@ -382,14 +400,26 @@ def main() -> None:
         train_indices = np.array([i for i, rid in enumerate(run_ids) if rid in train_set and benign_mask[i]])
         val_indices = np.array([i for i, rid in enumerate(run_ids) if rid in val_set and benign_mask[i]])
 
-        # Test includes: (a) benign test runs + (b) all non-benign runs (trojan labels or any trojan_active windows)
-        test_indices = np.array(
-            [
-                i
-                for i, (rid, lbl, trojan_any) in enumerate(zip(run_ids, labels, trojan_flags))
-                if (rid in test_set) or (lbl not in args.train_labels) or trojan_any
-            ]
-        )
+        if args.anomaly_mode == "trojan":
+            # Test includes: (a) benign test runs (from benign_eval_labels) + (b) all trojan windows.
+            test_indices = np.array(
+                [
+                    i
+                    for i, (rid, lbl, trojan_any) in enumerate(zip(run_ids, labels, trojan_flags))
+                    if ((rid in test_set) and (lbl in benign_eval_labels) and (not trojan_any))
+                    or is_trojan_label(lbl)
+                    or trojan_any
+                ]
+            )
+        else:
+            # Test includes: (a) benign test runs + (b) all non-benign runs (non-train labels or any trojan_active windows)
+            test_indices = np.array(
+                [
+                    i
+                    for i, (rid, lbl, trojan_any) in enumerate(zip(run_ids, labels, trojan_flags))
+                    if (rid in test_set) or (lbl not in args.train_labels) or trojan_any
+                ]
+            )
 
     train_ds = WindowDataset(windows_scaled[train_indices])
     val_ds = WindowDataset(windows_scaled[val_indices])
@@ -474,6 +504,7 @@ def main() -> None:
         "threshold_percentile": args.threshold_percentile,
         "threshold_source": args.threshold_source,
         "anomaly_mode": args.anomaly_mode,
+        "benign_eval_labels": benign_eval_labels,
         "onnx_opset": args.onnx_opset,
         "device": str(device),
         "seed": args.seed,

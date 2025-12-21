@@ -31,6 +31,7 @@ Key flags:
 - `--threshold-source`: whether to calibrate threshold on benign `train` or benign `val` errors
 - `--split-by`: `run` (recommended) prevents overlap leakage; `window` keeps the old behavior
 - `--anomaly-mode`: `nontrain` treats any non-training label as anomalous; `trojan` evaluates trojan detection only
+- `--benign-eval-labels`: which benign labels to include in the test evaluation (use `normal` if you want “trojan vs normal”)
 
 3) Outputs land in `phase4/artifacts/`:
 - `model.pt`: LSTM autoencoder weights
