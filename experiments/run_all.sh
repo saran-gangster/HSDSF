@@ -49,11 +49,12 @@ echo "[Phase 1] Data Generation"
 echo "-------------------------"
 
 if [ ! -d "$DATA_DIR/runs/run_000001" ]; then
-    echo "Generating benchmark runs..."
+    echo "Generating benchmark runs (120 runs with diversity)..."
     "$PY" experiments/generate_fusionbench_sim.py \
-        --n-binaries 6 \
+        --n-binaries 20 \
         --runs-per-binary 6 \
         --duration-s 180 \
+        --add-diversity \
         --include-benign-confounders
 else
     echo "Benchmark runs already exist, skipping generation."
@@ -79,7 +80,7 @@ echo ""
 echo "[Phase 2] Preprocessing"
 echo "-----------------------"
 
-for split in unseen_workload unseen_trojan unseen_regime; do
+for split in unseen_workload unseen_trojan unseen_regime random; do
     if [ ! -f "$DATA_DIR/processed/$split/windows_train.npz" ]; then
         echo "Preprocessing $split..."
         "$PY" dynamic/preprocess.py --split "$DATA_DIR/splits/$split.json"
@@ -144,7 +145,7 @@ echo ""
 echo "[Phase 4] Dynamic Expert (GPU)"
 echo "------------------------------"
 
-for split in unseen_workload unseen_trojan unseen_regime; do
+for split in unseen_workload unseen_trojan unseen_regime random; do
     DYN_DIR="$MODELS_DIR/dynamic/$split"
     
     if [ ! -f "$DYN_DIR/model_0.pt" ]; then
@@ -173,7 +174,7 @@ echo ""
 echo "[Phase 5] Fusion Training (GPU)"
 echo "--------------------------------"
 
-for split in unseen_workload unseen_trojan unseen_regime; do
+for split in unseen_workload unseen_trojan unseen_regime random; do
     DYN_DIR="$MODELS_DIR/dynamic/$split"
     FUS_DIR="$MODELS_DIR/fusion/$split"
     
@@ -203,7 +204,7 @@ echo ""
 echo "[Phase 6] Evaluation"
 echo "--------------------"
 
-for split in unseen_workload unseen_trojan unseen_regime; do
+for split in unseen_workload unseen_trojan unseen_regime random; do
     DYN_DIR="$MODELS_DIR/dynamic/$split"
     FUS_DIR="$MODELS_DIR/fusion/$split"
     RES_DIR="$RESULTS_DIR/$split"
@@ -211,12 +212,23 @@ for split in unseen_workload unseen_trojan unseen_regime; do
     if [ -f "$FUS_DIR/fusion_model.pt" ]; then
         if [ ! -f "$RES_DIR/results.csv" ]; then
             echo "Evaluating $split..."
-            "$PY" fusion/eval_fusion.py \
-                --processed-dir "$DATA_DIR/processed/$split" \
-                --static-dir "$STATIC_DIR" \
-                --dynamic-dir "$DYN_DIR" \
-                --fusion-dir "$FUS_DIR" \
-                --out-dir "$RES_DIR"
+            # Use threshold optimization for random split (in-distribution)
+            if [ "$split" = "random" ]; then
+                "$PY" fusion/eval_fusion.py \
+                    --processed-dir "$DATA_DIR/processed/$split" \
+                    --static-dir "$STATIC_DIR" \
+                    --dynamic-dir "$DYN_DIR" \
+                    --fusion-dir "$FUS_DIR" \
+                    --out-dir "$RES_DIR" \
+                    --sweep-thresholds
+            else
+                "$PY" fusion/eval_fusion.py \
+                    --processed-dir "$DATA_DIR/processed/$split" \
+                    --static-dir "$STATIC_DIR" \
+                    --dynamic-dir "$DYN_DIR" \
+                    --fusion-dir "$FUS_DIR" \
+                    --out-dir "$RES_DIR"
+            fi
         else
             echo "Results for $split already exist."
         fi
@@ -236,7 +248,7 @@ echo "---------------------------"
 FIG_DIR="$PAPER_DIR/figures"
 mkdir -p "$FIG_DIR"
 
-for split in unseen_workload unseen_trojan unseen_regime; do
+for split in unseen_workload unseen_trojan unseen_regime random; do
     RES_DIR="$RESULTS_DIR/$split"
     FUS_DIR="$MODELS_DIR/fusion/$split"
     
@@ -265,7 +277,7 @@ echo "Results:  $RESULTS_DIR/"
 echo "Figures:  $FIG_DIR/"
 echo ""
 echo "Summary of outputs:"
-for split in unseen_workload unseen_trojan unseen_regime; do
+for split in unseen_workload unseen_trojan unseen_regime random; do
     if [ -f "$RESULTS_DIR/$split/results.csv" ]; then
         echo "  ✓ $split: results available"
     else

@@ -56,11 +56,13 @@ def main() -> int:
     ap.add_argument("--hz", type=float, default=20.0)
     ap.add_argument("--duration-s", type=float, default=180.0)
 
-    ap.add_argument("--n-binaries", type=int, default=6)
+    ap.add_argument("--n-binaries", type=int, default=20)  # Increased from 6 to 20
     ap.add_argument("--runs-per-binary", type=int, default=6)
     ap.add_argument("--start-run", type=int, default=1)
 
     ap.add_argument("--include-benign-confounders", action="store_true")
+    ap.add_argument("--add-diversity", action="store_true", default=True,
+                    help="Add parameter diversity (trojan strength, duration variations)")
     args = ap.parse_args()
 
     args.out_runs.mkdir(parents=True, exist_ok=True)
@@ -86,6 +88,17 @@ def main() -> int:
                 trojan_on_s = 10.0
                 trojan_style = trojan_family
 
+            # Add parameter diversity if enabled
+            if args.add_diversity:
+                # Vary trojan strength and timing
+                trojan_strength = 0.5 + (run_idx % 4) * 0.5  # 0.5, 1.0, 1.5, 2.0
+                trojan_period_s = 30.0 + (run_idx % 3) * 10.0  # 30, 40, 50
+                duration_s = args.duration_s + ((run_idx % 7) - 3) * 10.0  # ±30s variation
+            else:
+                trojan_strength = 1.0
+                trojan_period_s = 40.0
+                duration_s = args.duration_s
+
             device_instance = sample_device_instance(args.seed, run_id)
             cfg = SimConfig(
                 seed=int(args.seed) + run_idx,
@@ -103,8 +116,8 @@ def main() -> int:
                 trojan_family=str(trojan_family),
                 trojan_variant="v1",
                 trojan_style=str(trojan_style),
-                trojan_strength=1.0,
-                trojan_period_s=40.0,
+                trojan_strength=float(trojan_strength),
+                trojan_period_s=float(trojan_period_s),
                 trojan_on_s=float(trojan_on_s),
                 device_instance=device_instance,
                 benign_throttle_event_rate_hz=0.05 if args.include_benign_confounders else 0.0,
@@ -116,7 +129,7 @@ def main() -> int:
                 run_id=run_id,
                 binary_id=binary_id,
                 cfg=cfg,
-                duration_s=float(args.duration_s),
+                duration_s=float(duration_s),
             )
             created.append(run_id)
             run_idx += 1

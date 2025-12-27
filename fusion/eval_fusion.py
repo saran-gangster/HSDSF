@@ -82,6 +82,64 @@ def _load_fusion_model(fusion_dir: Path) -> UGFFusion:
     return model
 
 
+def find_optimal_threshold(
+    p: np.ndarray,
+    y: np.ndarray,
+    t_centers: np.ndarray,
+    run_ids: np.ndarray,
+    runs_dir: Path,
+    window_len_s: float,
+    thresholds: np.ndarray = np.arange(0.1, 0.91, 0.1),
+) -> Tuple[float, float]:
+    """Find optimal threshold by maximizing F1 score.
+    
+    Returns:
+        (best_threshold, best_f1)
+    """
+    from evaluation.metrics import summarize_run_metrics
+    
+    best_f1 = 0.0
+    best_threshold = 0.5
+    
+    for thresh in thresholds:
+        # Collect F1 across all runs
+        f1_scores = []
+        for run_id in np.unique(run_ids):
+            mask = run_ids == run_id
+            if not np.any(mask):
+                continue
+            
+            run_p = p[mask]
+            run_y = y[mask]
+            run_t = t_centers[mask]
+            
+            intervals_path = runs_dir / run_id / "intervals.csv"
+            if not intervals_path.exists():
+                continue
+            
+            from evaluation.events import load_intervals_csv
+            intervals = load_intervals_csv(intervals_path)
+            run_duration_s = float(run_t.max() - run_t.min()) + window_len_s
+            
+            metrics = summarize_run_metrics(
+                y_true=run_y.astype(int).tolist(),
+                p=run_p.tolist(),
+                t_centers=run_t.tolist(),
+                true_intervals=intervals,
+                run_duration_s=run_duration_s,
+                window_len_s=window_len_s,
+                threshold=thresh,
+            )
+            f1_scores.append(metrics["event_f1"])
+        
+        avg_f1 = np.mean(f1_scores) if f1_scores else 0.0
+        if avg_f1 > best_f1:
+            best_f1 = avg_f1
+            best_threshold = thresh
+    
+    return best_threshold, best_f1
+
+
 def evaluate_method(
     method_name: str,
     p: np.ndarray,

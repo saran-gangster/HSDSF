@@ -129,6 +129,18 @@ def main() -> int:
         notes=f"unseen_regime=power_mode:{args.holdout_power_mode}|ambient_ge:{args.holdout_ambient_ge}",
     )
 
+    # Random split (no holdout - better for validation)
+    all_run_ids = [m.run_id for m in metas]
+    train_val, test = _stable_split(all_run_ids, val_frac=0.2, seed=args.seed + 50)
+    train, val = _stable_split(train_val, val_frac=0.2, seed=args.seed + 51)
+    _write_manifest(
+        args.out_dir / "random.json",
+        train=train,
+        val=val,
+        test=sorted(test),
+        notes="random_split=train:val:test=64:16:20",
+    )
+
     print(f"Wrote splits under: {args.out_dir}")
     return 0
 
