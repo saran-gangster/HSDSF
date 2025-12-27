@@ -192,8 +192,8 @@ def main() -> int:
     train_meta = _load_npz(args.processed_dir / "windows_train.npz")
     val_meta = _load_npz(args.processed_dir / "windows_val.npz")
     
-    train_binary_ids = train_meta.get("binary_ids", np.array(["unknown"] * len(train_meta["y"])))
-    val_binary_ids = val_meta.get("binary_ids", np.array(["unknown"] * len(val_meta["y"])))
+    train_binary_ids = train_meta.get("binary_id", np.array(["unknown"] * len(train_meta["y"])))
+    val_binary_ids = val_meta.get("binary_id", np.array(["unknown"] * len(val_meta["y"])))
 
     # Load static predictions (mapped to windows)
     p_s_train, u_s_train = _load_static_predictions(args.static_dir, train_binary_ids)

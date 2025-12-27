@@ -168,9 +168,9 @@ def main() -> int:
     
     test_data = _load_npz(test_path)
     y_test = test_data["y"].astype(np.float32)
-    t_centers = test_data.get("t_centers", np.arange(len(y_test)))
-    run_ids = test_data.get("run_ids", np.array(["run_000001"] * len(y_test)))
-    binary_ids = test_data.get("binary_ids", np.array(["unknown"] * len(y_test)))
+    t_centers = test_data.get("t_center", np.arange(len(y_test)))
+    run_ids = test_data.get("run_id", np.array(["run_000001"] * len(y_test)))
+    binary_ids = test_data.get("binary_id", np.array(["unknown"] * len(y_test)))
     
     print(f"Test set: {len(y_test)} windows, {len(np.unique(run_ids))} runs")
 
@@ -183,7 +183,7 @@ def main() -> int:
 
     # Load training data for learned baselines
     train_data = _load_npz(args.processed_dir / "windows_train.npz")
-    train_binary_ids = train_data.get("binary_ids", np.array(["unknown"] * len(train_data["y"])))
+    train_binary_ids = train_data.get("binary_id", np.array(["unknown"] * len(train_data["y"])))
     p_s_train, u_s_train = _load_static_predictions(args.static_dir, train_binary_ids)
     p_d_train, u_d_train, y_train = _load_dynamic_predictions(args.dynamic_dir, "train")
 
