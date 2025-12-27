@@ -18,7 +18,16 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-PY="${PY:-$REPO_ROOT/.venv/bin/python}"
+# Auto-detect Python: prefer .venv, fall back to system python3
+if [ -f "$REPO_ROOT/.venv/bin/python" ]; then
+    PY="$REPO_ROOT/.venv/bin/python"
+elif command -v python3 &> /dev/null; then
+    PY="python3"
+else
+    PY="python"
+fi
+PY="${PY_OVERRIDE:-$PY}"  # Allow override via PY_OVERRIDE env var
+
 DATA_DIR="data/fusionbench_sim"
 MODELS_DIR="models"
 RESULTS_DIR="results"
