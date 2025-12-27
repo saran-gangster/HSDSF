@@ -78,11 +78,20 @@ def train_single_model(
     device: torch.device,
     epochs: int,
     lr: float,
-    patience: int = 5,
+    patience: int = 10,
+    pos_weight: float = 1.0,
 ) -> Tuple[nn.Module, float]:
-    """Train a single model with early stopping."""
+    """Train a single model with early stopping, class weighting, and LR scheduling."""
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_fn = nn.BCEWithLogitsLoss()
+    
+    # Class weighting for imbalanced data
+    pw = torch.tensor([pos_weight], device=device)
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=pw)
+    
+    # Learning rate scheduler
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', patience=3, factor=0.5, min_lr=1e-6
+    )
     
     best_val_loss = float("inf")
     best_state = None
@@ -96,6 +105,8 @@ def train_single_model(
             logits = model(xb)
             loss = loss_fn(logits, yb)
             loss.backward()
+            # Gradient clipping for stable TCN training
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
         
         # Validation
@@ -103,6 +114,9 @@ def train_single_model(
         with torch.no_grad():
             val_logits = model(val_X.to(device))
             val_loss = loss_fn(val_logits, val_y.to(device)).item()
+        
+        # Update LR scheduler
+        scheduler.step(val_loss)
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -161,12 +175,12 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--model", type=str, default="tcn", choices=["tcn", "cnn", "mlp"])
     ap.add_argument("--n-ensemble", type=int, default=5)
-    ap.add_argument("--epochs", type=int, default=20)
+    ap.add_argument("--epochs", type=int, default=50)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--seed", type=int, default=1337)
-    ap.add_argument("--hidden-size", type=int, default=64)
-    ap.add_argument("--patience", type=int, default=5)
+    ap.add_argument("--hidden-size", type=int, default=128)
+    ap.add_argument("--patience", type=int, default=10)
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -223,13 +237,19 @@ def main() -> int:
             model = MLP(input_size)
         
         model = model.to(device)
+        
+        # Compute class weight for imbalanced data
+        pos_ratio = y_train.mean()
+        pos_weight = (1 - pos_ratio) / max(pos_ratio, 1e-6)
+        
         model, val_loss = train_single_model(
             model, train_loader, X_val_tensor, y_val_tensor,
-            device, args.epochs, args.lr, args.patience
+            device, args.epochs, args.lr, args.patience, pos_weight
         )
         models.append(model.cpu())
         val_losses.append(val_loss)
         print(f"  Val loss: {val_loss:.4f}")
+        print(f"  LR final, pos_weight: {pos_weight:.2f}")
 
     # Evaluate ensemble
     p_val, u_val, logits_val = predict_ensemble(models, X_val_tensor, device)

@@ -156,8 +156,10 @@ def main() -> int:
     ap.add_argument("--fusion-dir", type=Path, required=True)
     ap.add_argument("--runs-dir", type=Path, default=Path("data/fusionbench_sim/runs"))
     ap.add_argument("--out-dir", type=Path, required=True)
-    ap.add_argument("--threshold", type=float, default=0.5)
+    ap.add_argument("--threshold", type=float, default=0.3)  # Lower default for imbalanced data
     ap.add_argument("--window-len-s", type=float, default=5.0)
+    ap.add_argument("--sweep-thresholds", action="store_true", 
+                    help="Sweep thresholds to find optimal per method")
     args = ap.parse_args()
 
     # Load test data

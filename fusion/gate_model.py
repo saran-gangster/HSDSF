@@ -60,9 +60,9 @@ class UGFGate(nn.Module):
             nn.Linear(hidden_size // 2, 1),
         )
         
-        # Initialize with slight bias toward dynamic expert
+        # Initialize gate neutrally (sigmoid(0) = 0.5)
         with torch.no_grad():
-            self.net[-1].bias.fill_(0.5)
+            self.net[-1].bias.fill_(0.0)
     
     def forward(
         self,

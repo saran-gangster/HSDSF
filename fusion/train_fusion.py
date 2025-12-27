@@ -136,12 +136,25 @@ def train_gate(
             y = y.to(device)
             
             optimizer.zero_grad(set_to_none=True)
-            p_f = model(p_s, p_d, u_s, u_d)
-            loss = loss_fn(p_f, y)
+            
+            # Get both prediction and gate values
+            p_f, g = model.forward_with_gate(p_s, p_d, u_s, u_d)
+            
+            # Main BCE loss
+            bce_loss = loss_fn(p_f, y)
+            
+            # Entropy regularization to prevent gate collapse
+            # Encourages gate to explore both experts
+            eps = 1e-8
+            gate_entropy = -(g * torch.log(g + eps) + (1 - g) * torch.log(1 - g + eps)).mean()
+            
+            # Combined loss (maximize entropy = minimize negative entropy)
+            loss = bce_loss - 0.1 * gate_entropy
+            
             loss.backward()
             optimizer.step()
             
-            epoch_loss += loss.item()
+            epoch_loss += bce_loss.item()
             n_batches += 1
         
         # Validation
