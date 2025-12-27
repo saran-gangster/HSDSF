@@ -134,10 +134,13 @@ def predict_ensemble(
     all_logits = []
     all_probs = []
     
+    X_device = X.to(device)
+    
     for model in models:
+        model = model.to(device)  # Ensure model is on same device as data
         model.eval()
         with torch.no_grad():
-            logits = model(X.to(device)).cpu().numpy()
+            logits = model(X_device).cpu().numpy()
             probs = 1.0 / (1.0 + np.exp(-logits))
             all_logits.append(logits)
             all_probs.append(probs)
