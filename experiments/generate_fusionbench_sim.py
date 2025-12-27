@@ -114,17 +114,16 @@ def main() -> int:
             run_configs.append((str(args.out_runs), run_id, binary_id, cfg, float(args.duration_s)))
             run_idx += 1
 
-    # Parallel generation using ProcessPoolExecutor
-    from concurrent.futures import ProcessPoolExecutor
-    import multiprocessing
-    n_workers = min(multiprocessing.cpu_count(), 8)
+    # Parallel generation using ThreadPoolExecutor (avoiding pickle issues with ProcessPool)
+    from concurrent.futures import ThreadPoolExecutor
+    n_workers = 8
     
     def _generate_single(config_tuple):
         out_root, run_id, binary_id, cfg, duration_s = config_tuple
         generate_run(out_root=out_root, run_id=run_id, binary_id=binary_id, cfg=cfg, duration_s=duration_s)
         return run_id
     
-    with ProcessPoolExecutor(max_workers=n_workers) as executor:
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
         created = list(executor.map(_generate_single, run_configs))
 
     _write_binaries_csv(args.out_binaries, binary_ids)
