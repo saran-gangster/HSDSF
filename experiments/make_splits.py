@@ -61,20 +61,19 @@ def _write_manifest(path: Path, train: List[str], val: List[str], test: List[str
 
 
 def _stable_split(ids: Sequence[str], *, val_frac: float, seed: int) -> Tuple[List[str], List[str]]:
-    # deterministic split without randomness from runtime hash: sort, then take stride-based selection
-    ids = sorted(ids)
+    """Deterministic train/val split using seeded random shuffle."""
+    import random
+    ids = sorted(ids)  # Ensure deterministic ordering
     if not ids:
         return [], []
-    n_val = max(1, int(round(len(ids) * float(val_frac)))) if len(ids) >= 3 else max(0, len(ids) // 3)
-    # simple LCG-style indexing to spread samples
-    step = (seed % (len(ids) - 1) + 1) if len(ids) > 1 else 1
-    val_idx = set()
-    i = seed % len(ids)
-    while len(val_idx) < n_val and len(val_idx) < len(ids):
-        val_idx.add(i)
-        i = (i + step) % len(ids)
-    train = [rid for j, rid in enumerate(ids) if j not in val_idx]
-    val = [rid for j, rid in enumerate(ids) if j in val_idx]
+    
+    rng = random.Random(seed)
+    shuffled = ids[:]
+    rng.shuffle(shuffled)
+    
+    n_val = max(1, int(round(len(ids) * float(val_frac))))
+    val = sorted(shuffled[:n_val])
+    train = sorted(shuffled[n_val:])
     return train, val
 
 
