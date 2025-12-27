@@ -56,5 +56,12 @@ phase2/*.md
 phase2/firmware_clean
 phase2/firmware_trojan
 
+# FusionBench-Sim generated artifacts
+data/fusionbench_sim/runs/
+
+# Paper build artifacts
+paper/figures/
+paper/tables/
+
 
 

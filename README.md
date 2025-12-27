@@ -1,5 +1,18 @@
 # Project Plan: Hybrid Static–Dynamic Security Framework on NVIDIA Jetson AGX Xavier
 
+## Project status (simulator-first UGF upgrade)
+
+- Legacy PoC phases have been moved under `archive/`.
+- The current end-to-end target plan is in `New_plan.md` (UGF / FusionBench-Sim).
+- New scaffolded modules live at repo root: `simulator/`, `data/`, `static/`, `dynamic/`, `fusion/`, `evaluation/`, `experiments/`, `docs/`, `paper/`.
+
+Quick start (generate one deterministic simulator run + validate schema):
+
+```bash
+".venv/bin/python" experiments/sim_generate_runs.py --run-id run_000001 --binary-id sim_binary_0001 --duration-s 10
+".venv/bin/python" -m unittest simulator.tests.test_schema_validate
+```
+
 ## 1. Objective
 
 Develop a minimum viable **hybrid static–dynamic security framework** to detect hardware/firmware supply‑chain anomalies on an NVIDIA Jetson AGX Xavier–based edge device.

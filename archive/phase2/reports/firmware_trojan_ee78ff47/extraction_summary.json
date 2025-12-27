@@ -1,0 +1,18 @@
+{
+  "binary": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/firmware_trojan",
+  "sha256": "ee78ff4706da3dab1089878065eb7f48d1485491a1efdca7e4e16a288ec28d15",
+  "arch": "Advanced Micro Devices X86-64",
+  "file": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/firmware_trojan: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, BuildID[sha1]=e53b6294dc97855828551886124483eba87c35a5, for GNU/Linux 3.2.0, stripped",
+  "artifacts": {
+    "work_dir": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_trojan_ee78ff47",
+    "dis": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_trojan_ee78ff47/firmware_trojan.dis",
+    "strings": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_trojan_ee78ff47/firmware_trojan.strings",
+    "meta": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_trojan_ee78ff47/firmware_trojan.meta",
+    "symbols": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_trojan_ee78ff47/firmware_trojan.symbols",
+    "file": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_trojan_ee78ff47/firmware_trojan.file"
+  },
+  "function_count": 4,
+  "chunk_count": 434,
+  "selected_chunk_count": 30,
+  "notable_string_count": 80
+}

@@ -1,0 +1,1118 @@
+{
+  "binary_path": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/firmware_clean",
+  "binary_sha256": "7a4e6f5572ce42f2bec710a2c906a9958074047dffc7fd7341ca4fee96740093",
+  "metadata": {
+    "arch": "Advanced Micro Devices X86-64",
+    "file": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/firmware_clean: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, BuildID[sha1]=0c318fdd5dc0a7abca2177ec8cd9f34d7d320541, for GNU/Linux 3.2.0, stripped"
+  },
+  "notable_strings": [
+    "%s: IFUNC symbol '%s' referenced in '%s' is defined in the executable and creates an unsatisfiable circular dependency.",
+    "cannot load auxiliary `%s' because of empty dynamic string token substitution",
+    "cannot enable executable stack as shared object requires",
+    "cannot dynamically load position-independent executable",
+    "binding file %s [%lu] to %s [%lu]: %s symbol `%s'",
+    "type != ET_EXEC || l->l_type == lt_executable",
+    "l->l_relocated || l->l_type == lt_executable",
+    "Transport endpoint is already connected",
+    "empty dynamic string token substitution",
+    "only ET_DYN and ET_EXEC can be loaded",
+    "Cannot exec a shared library directly",
+    "Network dropped connection on reset",
+    "Transport endpoint is not connected",
+    "cannot dynamically load executable",
+    "Software caused connection abort",
+    "glibc.cpu.prefer_map_32bit_exec",
+    "Socket operation on non-socket",
+    "Protocol wrong type for socket",
+    "Key was rejected by service",
+    "expand_dynamic_string_token",
+    "Required key not available",
+    "Socket type not supported",
+    "Connection reset by peer",
+    "LD_PREFER_MAP_32BIT_EXEC",
+    "Connection timed out",
+    "Key has been revoked",
+    "Connection refused",
+    "_dl_debug_vdprintf",
+    "Exec format error",
+    "Key has expired",
+    "LD_DEBUG_OUTPUT",
+    "EKEYREJECTED",
+    "Auth failed",
+    "LD_BIND_NOW",
+    "LD_BIND_NOT",
+    "EKEYEXPIRED",
+    "EKEYREVOKED",
+    "Password:",
+    "admin123",
+    "LD_DEBUG",
+    "ELIBEXEC",
+    "ENOEXEC",
+    "ENOKEY",
+    "admin",
+    "Auth",
+    "(old_top == initial_top (av) && old_size == 0) || ((unsigned long) (old_size) >= MINSIZE && prev_inuse (old_top) && ((unsigned long) old_end & (pagesize - 1)) == 0)",
+    "status == __GCONV_OK || status == __GCONV_EMPTY_INPUT || status == __GCONV_ILLEGAL_INPUT || status == __GCONV_INCOMPLETE_INPUT || status == __GCONV_FULL_OUTPUT",
+    "lead_zero <= (base == 16 ? ((uintmax_t) exponent - (uintmax_t) INTMAX_MIN) / 4 : ((uintmax_t) exponent - (uintmax_t) INTMAX_MIN))",
+    "TLS generation counter wrapped!  Please report as described in <https://bugs.launchpad.net/ubuntu/+source/glibc/+bugs>.",
+    "int_no <= (uintmax_t) (exponent < 0 ? (INTMAX_MAX - bits + 1) / 4 : (INTMAX_MAX - exponent - bits + 1) / 4)",
+    "!victim || chunk_is_mmapped (mem2chunk (victim)) || &main_arena == arena_for_chunk (mem2chunk (victim))",
+    "!victim || chunk_is_mmapped (mem2chunk (victim)) || ar_ptr == arena_for_chunk (mem2chunk (victim))",
+    "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+    "!newp || chunk_is_mmapped (mem2chunk (newp)) || ar_ptr == arena_for_chunk (mem2chunk (newp))",
+    "e != EDEADLK || (kind != PTHREAD_MUTEX_ERRORCHECK_NP && kind != PTHREAD_MUTEX_RECURSIVE_NP)",
+    "previous_prio == -1 || (previous_prio >= fifo_min_prio && previous_prio <= fifo_max_prio)",
+    "!p || chunk_is_mmapped (mem2chunk (p)) || &main_arena == arena_for_chunk (mem2chunk (p))",
+    "warning: direct reference to protected function `%s' in `%s' may break pointer equality",
+    "!mem || chunk_is_mmapped (mem2chunk (mem)) || av == arena_for_chunk (mem2chunk (mem))",
+    "!p || chunk_is_mmapped (mem2chunk (p)) || ar_ptr == arena_for_chunk (mem2chunk (p))",
+    "lead_zero <= (base == 16 ? (uintmax_t) INTMAX_MAX / 4 : (uintmax_t) INTMAX_MAX)",
+    "WARNING: ld.so: invalid GLIBC_TUNABLES value `%.*s' for option `%s': ignored.",
+    "0 <= p.exponent && p.exponent < 3 && p.exponent + to_shift < BITS_PER_MP_LIMB",
+    "warning: copy relocation against non-copyable protected symbol `%s' in `%s'",
+    "new_prio == -1 || (new_prio >= fifo_min_prio && new_prio <= fifo_max_prio)",
+    "version->filename == NULL || ! _dl_name_match_p (version->filename, map)",
+    "%s: Symbol `%s' has different size in shared object, consider re-linking",
+    "dig_no > int_no && exponent <= 0 && exponent >= MIN_10_EXP - (DIG + 2)",
+    "((unsigned long) ((char *) p + new_size) & (heap->pagesize - 1)) == 0",
+    "newsize >= nb && (((unsigned long) (chunk2mem (p))) % alignment) == 0",
+    "checking for version `%s' in file %s [%lu] required by file %s [%lu]",
+    "marking %s [%lu] as NODELETE due to reference from main program",
+    "Fatal glibc error: cannot allocate memory for find-object data",
+    "Fatal error: length accounting in _dl_exception_create_format",
+    "marking %s [%lu] as NODELETE due to memory allocation failure",
+    "((INTERNAL_SIZE_T) chunk2mem (mm) & MALLOC_ALIGN_MASK) == 0",
+    "(unsigned long) (old_size) < (unsigned long) (nb + MINSIZE)",
+    "int_no <= (uintmax_t) (INTMAX_MAX + MIN_EXP - MANT_DIG) / 4",
+    "marking %s [%lu] as NODELETE due to reference from %s [%lu]",
+    "%s: Symbol `%s' causes overflow in R_X86_64_PC32 relocation"
+  ],
+  "analyzed_functions": 30,
+  "model": "zai-glm-4.6",
+  "function_reports": [
+    {
+      "function_name": ".text#1",
+      "summary": "Function appears to be a dispatcher or handler that checks flags and performs conditional operations. It contains loops with decrementing counters and calls to other functions based on conditions.",
+      "security_relevant": true,
+      "suspicious": false,
+      "risk_score": 0.3,
+      "findings": [
+        {
+          "type": "Control Flow",
+          "description": "Complex conditional logic with flag checking (0x8000) and counter manipulation",
+          "evidence": "4011c0: test DWORD PTR [r13+0x0],0x8000; 4011df: test eax,eax; 4011ff: sub eax,0x1"
+        }
+      ],
+      "notes": "Function appears to be part of a larger control flow system, possibly related to thread or task management",
+      "confidence": 0.6,
+      "categories": [
+        "control_flow"
+      ],
+      "indicators": [
+        "flag_checking",
+        "counter_manipulation"
+      ],
+      "recommended_actions": [
+        "Analyze called functions at 0x499370 and 0x414910",
+        "Trace flag origins and usage"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "flags",
+        "counters"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#2",
+      "summary": "Function implements a linked list traversal and cleanup routine. It walks through a list structure and performs operations on each node.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Data Structure",
+          "description": "Linked list traversal with node cleanup",
+          "evidence": "401780: mov rdi,rbx; 401783: mov rbx,QWORD PTR [rbx+0x18]; 401787: call 0x419890"
+        }
+      ],
+      "notes": "Standard list management code, no suspicious behavior detected",
+      "confidence": 0.7,
+      "categories": [
+        "data_structure"
+      ],
+      "indicators": [
+        "list_traversal"
+      ],
+      "recommended_actions": [
+        "Verify cleanup function at 0x419890"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "linked_list_nodes"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#3",
+      "summary": "CPUID instruction wrapper that queries processor features and capabilities. Performs various bit manipulations and calculations based on CPU information.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "System Query",
+          "description": "CPU feature detection using CPUID instruction",
+          "evidence": "401c36: cpuid; 401c7a: cpuid; 401cb3: cpuid"
+        }
+      ],
+      "notes": "Legitimate CPU feature detection code",
+      "confidence": 0.8,
+      "categories": [
+        "system_query"
+      ],
+      "indicators": [
+        "cpuid_instruction"
+      ],
+      "recommended_actions": [
+        "None required"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "cpu_features"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#4",
+      "summary": "Another CPUID-related function that checks system capabilities and sets up memory mappings based on processor features.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "System Query",
+          "description": "CPU capability checking with memory setup",
+          "evidence": "40214b: cpuid; 402153: mov QWORD PTR [rip+0xcd8b6],rax"
+        }
+      ],
+      "notes": "Standard system initialization code",
+      "confidence": 0.7,
+      "categories": [
+        "system_query",
+        "memory_management"
+      ],
+      "indicators": [
+        "cpuid_instruction"
+      ],
+      "recommended_actions": [
+        "None required"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "cpu_features",
+        "memory_addresses"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#5",
+      "summary": "String processing or parsing function that performs character comparisons and lookups. Contains magic constants and complex branching logic.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.6,
+      "findings": [
+        {
+          "type": "Suspicious Constants",
+          "description": "Magic constant 0xaaaaaaab used for division",
+          "evidence": "4025ff: mov edx,0xaaaaaaab"
+        },
+        {
+          "type": "Character Processing",
+          "description": "Complex character comparison logic with special cases",
+          "evidence": "402662: cmp dil,0x40; 40266d: cmp eax,0xff; 402673: cmp eax,0x49"
+        }
+      ],
+      "notes": "Function may be involved in protocol parsing or command interpretation",
+      "confidence": 0.5,
+      "categories": [
+        "parsing",
+        "protocol_handling"
+      ],
+      "indicators": [
+        "magic_constants",
+        "character_processing"
+      ],
+      "recommended_actions": [
+        "Analyze string table at 0x49f4e0",
+        "Investigate special character handling"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "strings",
+        "characters"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#6",
+      "summary": "CPU feature detection and configuration function that sets various flags based on processor capabilities. Contains numerous bit manipulations.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.2,
+      "findings": [
+        {
+          "type": "System Configuration",
+          "description": "CPU feature-based configuration setup",
+          "evidence": "402b4f: cpuid; 402b51: mov DWORD PTR [rip+0xccffd],eax"
+        }
+      ],
+      "notes": "System configuration based on CPU features",
+      "confidence": 0.6,
+      "categories": [
+        "system_configuration"
+      ],
+      "indicators": [
+        "cpuid_instruction",
+        "bit_manipulation"
+      ],
+      "recommended_actions": [
+        "Verify configuration values are appropriate"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "cpu_features",
+        "configuration_flags"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#7",
+      "summary": "Large initialization function that sets up numerous data structures and global variables. Contains extensive memory operations and value assignments.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.2,
+      "findings": [
+        {
+          "type": "Initialization",
+          "description": "Extensive global variable and structure initialization",
+          "evidence": "403166: mov QWORD PTR [rbp-0xb0],0xffffffffffffffff; multiple similar assignments"
+        }
+      ],
+      "notes": "Standard initialization code for a complex system",
+      "confidence": 0.5,
+      "categories": [
+        "initialization"
+      ],
+      "indicators": [
+        "global_initialization"
+      ],
+      "recommended_actions": [
+        "Track initialized structures for later analysis"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "global_variables",
+        "data_structures"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#8",
+      "summary": "Function that calls a subfunction multiple times with different parameters (0xb9, 0xbb, 0xbd, etc.) and processes the results. Appears to be a setup or configuration routine.",
+      "security_relevant": true,
+      "suspicious": false,
+      "risk_score": 0.3,
+      "findings": [
+        {
+          "type": "Repeated Calls",
+          "description": "Multiple calls to same function with sequential parameters",
+          "evidence": "40384b: mov edi,0xb9; 403860: mov edi,0xbb; 403871: mov edi,0xbd; pattern continues"
+        }
+      ],
+      "notes": "May be setting up multiple resources or configurations",
+      "confidence": 0.6,
+      "categories": [
+        "configuration",
+        "resource_management"
+      ],
+      "indicators": [
+        "sequential_calls"
+      ],
+      "recommended_actions": [
+        "Analyze function at 0x4028b0 to understand operations",
+        "Verify parameter sequence is legitimate"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "configuration_data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#9",
+      "summary": "This function appears to be an initialization or setup routine that processes arrays, performs memory operations, and calls multiple subroutines. It contains loops that iterate through data structures and makes several function calls including potential system operations.",
+      "security_relevant": true,
+      "suspicious": false,
+      "risk_score": 0.3,
+      "findings": [
+        {
+          "type": "Memory Operations",
+          "description": "Function performs extensive memory manipulation and array traversal",
+          "evidence": "403f14-403f5b: Memory allocation and array iteration loop"
+        },
+        {
+          "type": "Function Calls",
+          "description": "Multiple function calls to various addresses including 0x42f5a0, 0x42e620, 0x402f60, 0x401990",
+          "evidence": "403f5b-403f71: Series of call instructions"
+        }
+      ],
+      "notes": "Appears to be part of system initialization. No obvious malicious patterns detected.",
+      "confidence": 0.6,
+      "categories": [
+        "initialization"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "Trace function calls to identify purpose",
+        "Monitor memory allocation patterns"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "memory",
+        "arrays"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#10",
+      "summary": "This function performs system calls including mmap (0x1002), write, and exit. It manipulates memory addresses and performs calculations. The presence of multiple syscalls suggests system-level operations.",
+      "security_relevant": true,
+      "suspicious": false,
+      "risk_score": 0.4,
+      "findings": [
+        {
+          "type": "System Calls",
+          "description": "Executes mmap syscall with parameters, followed by write and exit syscalls",
+          "evidence": "404535: syscall (mmap with edi=0x1002), 404551: write syscall, 40455d: exit syscall"
+        },
+        {
+          "type": "Memory Mapping",
+          "description": "Maps memory region with specific permissions",
+          "evidence": "404515-404535: mmap syscall setup and execution"
+        }
+      ],
+      "notes": "Standard memory management operations. The mmap syscall is commonly used for legitimate purposes.",
+      "confidence": 0.7,
+      "categories": [
+        "memory_management",
+        "system_calls"
+      ],
+      "indicators": [
+        "syscall 0x1002 (mmap)"
+      ],
+      "recommended_actions": [
+        "Verify mmap parameters and permissions",
+        "Monitor memory mapping operations"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "memory",
+        "system_calls"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#11",
+      "summary": "Complex function with atomic operations, thread synchronization primitives (xchg, lock cmpxchg), and conditional jumps. Uses fs:0x30 for thread-local storage access and performs function pointer calls.",
+      "security_relevant": true,
+      "suspicious": false,
+      "risk_score": 0.3,
+      "findings": [
+        {
+          "type": "Thread Synchronization",
+          "description": "Uses atomic operations and thread-local storage",
+          "evidence": "404a5c: xchg instruction, 404a73: lock cmpxchg, 404a53: fs:0x30 access"
+        },
+        {
+          "type": "Function Pointer Calls",
+          "description": "Indirect function calls through registers",
+          "evidence": "404a6e: call rax, 404b18: call rax"
+        }
+      ],
+      "notes": "Appears to be implementing thread synchronization or locking mechanism. Common in multi-threaded applications.",
+      "confidence": 0.6,
+      "categories": [
+        "threading",
+        "synchronization"
+      ],
+      "indicators": [
+        "atomic operations",
+        "thread-local storage access"
+      ],
+      "recommended_actions": [
+        "Analyze synchronization logic",
+        "Verify thread safety implementation"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "thread_data",
+        "synchronization_primitives"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#12",
+      "summary": "Buffer manipulation function that writes data to memory locations. Performs pointer arithmetic and memory writes. Contains XMM register operations for potential data processing.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Buffer Operations",
+          "description": "Writes bytes to buffer and performs pointer arithmetic",
+          "evidence": "404ff6: mov BYTE PTR [rax],r12b, 404fef-404ff3: Pointer calculations"
+        }
+      ],
+      "notes": "Standard buffer manipulation routine. No security concerns identified.",
+      "confidence": 0.8,
+      "categories": [
+        "buffer_operations"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "None required"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "buffers"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#13",
+      "summary": "Numeric parsing and validation function that processes digit sequences. Performs arithmetic operations on parsed values and contains bounds checking. Part of input processing pipeline.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Numeric Parsing",
+          "description": "Parses and validates numeric input sequences",
+          "evidence": "4056c9-4056d8: Digit validation (sub ecx,0x30, cmp ecx,0x9)"
+        }
+      ],
+      "notes": "Standard numeric input processing. No malicious patterns detected.",
+      "confidence": 0.7,
+      "categories": [
+        "input_processing"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "None required"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "numeric_input"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#14",
+      "summary": "Character processing function with conditional logic and bounds checking. Performs string operations and contains multiple validation checks. Part of input validation system.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Character Processing",
+          "description": "Processes and validates character sequences",
+          "evidence": "405cb4-405cc4: Character processing loop with bounds checking"
+        }
+      ],
+      "notes": "Standard character/string processing routine. No security concerns.",
+      "confidence": 0.7,
+      "categories": [
+        "input_validation"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "None required"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "strings",
+        "characters"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#15",
+      "summary": "Complex arithmetic and numeric processing function with floating-point operations. Performs calculations and contains multiple conditional branches. Part of computational module.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Floating Point Operations",
+          "description": "Performs floating-point calculations",
+          "evidence": "405349: fstp TBYTE PTR [rax]"
+        }
+      ],
+      "notes": "Standard computational function. No malicious behavior identified.",
+      "confidence": 0.6,
+      "categories": [
+        "computation"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "None required"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "numeric_data",
+        "floating_point"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#16",
+      "summary": "Memory allocation and data processing function that manages buffers and performs data operations. Contains loops and conditional logic for data handling.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.2,
+      "findings": [
+        {
+          "type": "Memory Management",
+          "description": "Allocates and manages memory buffers",
+          "evidence": "406979: call 0x4191c0 (likely malloc), 406985: mov QWORD PTR [rbx],rax"
+        }
+      ],
+      "notes": "Standard memory management and data processing. No suspicious patterns.",
+      "confidence": 0.6,
+      "categories": [
+        "memory_management",
+        "data_processing"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "None required"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "memory",
+        "buffers"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#17",
+      "summary": "Function appears to be part of a string processing or parsing routine, with loops that iterate through characters and perform comparisons. Contains suspicious hardcoded string references and conditional jumps that could indicate input validation bypass.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.6,
+      "findings": [
+        {
+          "type": "Suspicious String Reference",
+          "description": "Function references a hardcoded string at address 0x49d10e which could contain malicious payload or configuration",
+          "evidence": "406fa2: lea rdi,[rip+0x96165] # 0x49d10e"
+        },
+        {
+          "type": "Conditional Bypass",
+          "description": "Contains multiple conditional jumps that could bypass security checks",
+          "evidence": "406f93: je 0x406fa2, 406f9c: je 0x4092d9, 406fc2: je 0x4070a6"
+        }
+      ],
+      "notes": "Function shows characteristics of input parsing with potential for buffer manipulation. The multiple conditional jumps suggest possible authentication bypass logic.",
+      "confidence": 0.7,
+      "categories": [
+        "backdoor",
+        "anti-analysis"
+      ],
+      "indicators": [
+        "Hardcoded string reference",
+        "Multiple conditional bypasses"
+      ],
+      "recommended_actions": [
+        "Examine string at 0x49d10e",
+        "Trace execution paths for bypass logic",
+        "Check for buffer overflow vulnerabilities"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [
+        "Conditional bypass mechanisms"
+      ],
+      "data_types_accessed": [
+        "String data",
+        "Character arrays"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#18",
+      "summary": "Loop-heavy function that processes byte sequences with character comparisons and arithmetic operations. Contains magic constants and suspicious character checks.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.5,
+      "findings": [
+        {
+          "type": "Magic Constant",
+          "description": "Uses magic constant 0x2b (43 decimal) in character comparison",
+          "evidence": "406668: lea esi,[rdi-0x2b]"
+        },
+        {
+          "type": "Suspicious Character Processing",
+          "description": "Performs bitwise operations on characters which could be obfuscation",
+          "evidence": "40666b: and esi,0xfd"
+        }
+      ],
+      "notes": "Function appears to be doing character transformation or validation with potential obfuscation techniques.",
+      "confidence": 0.6,
+      "categories": [
+        "anti-analysis"
+      ],
+      "indicators": [
+        "Magic constants",
+        "Bitwise character manipulation"
+      ],
+      "recommended_actions": [
+        "Analyze character transformation logic",
+        "Check for encoding/decoding routines"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [
+        "Character obfuscation"
+      ],
+      "data_types_accessed": [
+        "Character data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#19",
+      "summary": "Complex function with nested loops and array indexing operations. Contains suspicious bit operations and large magic constants.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.4,
+      "findings": [
+        {
+          "type": "Magic Constant",
+          "description": "Uses magic constant 0x80 in bit operations",
+          "evidence": "407cf0: and eax,0x80"
+        },
+        {
+          "type": "Large Magic Constant",
+          "description": "Uses suspicious large constant 0x7fffffff",
+          "evidence": "407d13: mov esi,0x7fffffff"
+        }
+      ],
+      "notes": "Function appears to be doing complex data processing with potential for integer manipulation.",
+      "confidence": 0.5,
+      "categories": [
+        "anti-analysis"
+      ],
+      "indicators": [
+        "Magic constants",
+        "Complex loop structures"
+      ],
+      "recommended_actions": [
+        "Review integer overflow possibilities",
+        "Analyze loop bounds checking"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "Integer data",
+        "Array structures"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#20",
+      "summary": "Function performs byte copying and manipulation operations with suspicious memory access patterns and magic constants.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.5,
+      "findings": [
+        {
+          "type": "Magic Constant",
+          "description": "Uses magic constant 0xffffffffffffffc0",
+          "evidence": "4083b3: mov r10,0xffffffffffffffc0"
+        },
+        {
+          "type": "Suspicious Memory Access",
+          "description": "Accesses memory using fs: segment which is often used for anti-debugging",
+          "evidence": "4083c0: mov DWORD PTR fs:[r10],eax"
+        }
+      ],
+      "notes": "Function contains anti-debugging techniques with fs: segment access and suspicious constants.",
+      "confidence": 0.6,
+      "categories": [
+        "anti-analysis"
+      ],
+      "indicators": [
+        "FS segment access",
+        "Magic constants"
+      ],
+      "recommended_actions": [
+        "Check for anti-debugging mechanisms",
+        "Analyze memory access patterns"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [
+        "FS segment access",
+        "Anti-debugging"
+      ],
+      "data_types_accessed": [
+        "Memory structures"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#21",
+      "summary": "Function performs memory operations and byte manipulation with suspicious constants and conditional logic.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.4,
+      "findings": [
+        {
+          "type": "Magic Byte",
+          "description": "Writes magic byte 0x30 to memory",
+          "evidence": "408a5d: mov BYTE PTR [rax],0x30"
+        },
+        {
+          "type": "Conditional Logic",
+          "description": "Complex conditional jumps that could indicate control flow obfuscation",
+          "evidence": "4089bc: je 0x40b9b8, 408a31: je 0x40bffb"
+        }
+      ],
+      "notes": "Function shows characteristics of data manipulation with potential for payload injection.",
+      "confidence": 0.5,
+      "categories": [
+        "anti-analysis"
+      ],
+      "indicators": [
+        "Magic byte values",
+        "Complex control flow"
+      ],
+      "recommended_actions": [
+        "Analyze byte manipulation logic",
+        "Check for shellcode patterns"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [
+        "Control flow obfuscation"
+      ],
+      "data_types_accessed": [
+        "Byte arrays"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#22",
+      "summary": "Function contains string processing with suspicious constants and potential buffer manipulation operations.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.5,
+      "findings": [
+        {
+          "type": "Magic Constant",
+          "description": "Uses magic constant 0x2f in comparisons",
+          "evidence": "409041: cmp edx,0x2f"
+        },
+        {
+          "type": "Suspicious Memory Operations",
+          "description": "Performs word-sized memory writes that could be part of shellcode",
+          "evidence": "40905f: mov WORD PTR [rax],r15w"
+        }
+      ],
+      "notes": "Function performs suspicious memory writes and comparisons that could be part of exploitation logic.",
+      "confidence": 0.6,
+      "categories": [
+        "backdoor"
+      ],
+      "indicators": [
+        "Magic constants",
+        "Suspicious memory writes"
+      ],
+      "recommended_actions": [
+        "Analyze memory write patterns",
+        "Check for exploitation techniques"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "Memory structures"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#23",
+      "summary": "Function performs character processing with bit manipulation and suspicious conditional checks.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.4,
+      "findings": [
+        {
+          "type": "Bit Manipulation",
+          "description": "Performs suspicious bit tests on characters",
+          "evidence": "4096b8: test BYTE PTR [rdx+rax*2+0x1],0x20"
+        },
+        {
+          "type": "Magic Constant",
+          "description": "Uses magic constant 0x2100 in tests",
+          "evidence": "409716: test DWORD PTR [rbp-0x654],0x2100"
+        }
+      ],
+      "notes": "Function shows characteristics of character filtering or encoding with potential for bypass mechanisms.",
+      "confidence": 0.5,
+      "categories": [
+        "anti-analysis"
+      ],
+      "indicators": [
+        "Bit manipulation",
+        "Magic constants"
+      ],
+      "recommended_actions": [
+        "Analyze character filtering logic",
+        "Check for encoding schemes"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [
+        "Bit-level operations"
+      ],
+      "data_types_accessed": [
+        "Character data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#24",
+      "summary": "Function performs arithmetic operations and memory manipulation with suspicious constants and potential overflow conditions.",
+      "security_relevant": true,
+      "suspicious": true,
+      "risk_score": 0.4,
+      "findings": [
+        {
+          "type": "Arithmetic Operations",
+          "description": "Performs suspicious shift operations",
+          "evidence": "409d67: sar rax,0x2"
+        },
+        {
+          "type": "Magic Constant",
+          "description": "Uses magic constant 0xffffffff",
+          "evidence": "409db7: cmp eax,0xffffffff"
+        }
+      ],
+      "notes": "Function contains arithmetic operations that could be used for obfuscation or exploitation.",
+      "confidence": 0.5,
+      "categories": [
+        "anti-analysis"
+      ],
+      "indicators": [
+        "Arithmetic manipulation",
+        "Magic constants"
+      ],
+      "recommended_actions": [
+        "Review arithmetic for overflow",
+        "Analyze shift operations"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "Integer data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#25",
+      "summary": "String processing function with loop-based character copying and bounds checking. Contains error handling for buffer operations and calls to subfunction at 0x411e50.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "String Processing",
+          "description": "Function performs character-by-character string copying with bounds checking",
+          "evidence": "Instructions at 0x40a37c-0x40a3ef show string iteration and copying logic"
+        }
+      ],
+      "notes": "Appears to be a standard string manipulation routine, possibly part of a larger parsing or formatting function.",
+      "confidence": 0.6,
+      "categories": [
+        "string_processing"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "Continue analysis of calling functions to understand context"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "string_data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#26",
+      "summary": "Memory management and pointer arithmetic function with array-like access patterns. Contains loops and conditional jumps for data structure traversal.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Memory Management",
+          "description": "Function performs pointer arithmetic and array-like data structure traversal",
+          "evidence": "Instructions at 0x40a97e-0x40a9ba show complex pointer calculations and array indexing"
+        }
+      ],
+      "notes": "Generic memory management routine, likely part of data structure handling.",
+      "confidence": 0.5,
+      "categories": [
+        "memory_management"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "Analyze data structures being processed"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "memory_pointers"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#27",
+      "summary": "Data processing function with character-level operations and conditional branching. Contains calls to subfunctions and error handling patterns.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Data Processing",
+          "description": "Function processes data with character-level operations and bounds checking",
+          "evidence": "Instructions at 0x40b027-0x40b05d show character processing with bounds checks"
+        }
+      ],
+      "notes": "Appears to be part of a larger data parsing or transformation routine.",
+      "confidence": 0.5,
+      "categories": [
+        "data_processing"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "Investigate the nature of data being processed"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "character_data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#28",
+      "summary": "Buffer processing function with loop-based operations and error handling. Contains retry logic and calls to external functions.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Buffer Processing",
+          "description": "Function processes buffers with retry logic and error handling",
+          "evidence": "Instructions at 0x40b6f2-0x40b6fa show retry loop with counter up to 0x10"
+        }
+      ],
+      "notes": "Standard buffer processing routine with error recovery mechanisms.",
+      "confidence": 0.5,
+      "categories": [
+        "buffer_processing"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "Analyze buffer contents and calling context"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "buffer_data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#29",
+      "summary": "Index-based data access function with array traversal and conditional logic. Contains pointer arithmetic and bounds checking.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Array Access",
+          "description": "Function performs indexed access to data structures with bounds checking",
+          "evidence": "Instructions at 0x40bcd4-0x40bcd7 show bounds check against 0x2f"
+        }
+      ],
+      "notes": "Generic array/data structure access routine.",
+      "confidence": 0.5,
+      "categories": [
+        "data_structure_access"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "Identify the data structures being accessed"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "array_data"
+      ],
+      "network_actions": []
+    },
+    {
+      "function_name": ".text#30",
+      "summary": "Character processing function with loop-based operations and conditional branching. Contains error handling and calls to subfunctions.",
+      "security_relevant": false,
+      "suspicious": false,
+      "risk_score": 0.1,
+      "findings": [
+        {
+          "type": "Character Processing",
+          "description": "Function processes characters with validation and error handling",
+          "evidence": "Instructions at 0x40c2c7-0x40c2cd show character processing with error checks"
+        }
+      ],
+      "notes": "Standard character processing routine, likely part of input validation or transformation.",
+      "confidence": 0.5,
+      "categories": [
+        "character_processing"
+      ],
+      "indicators": [],
+      "recommended_actions": [
+        "Analyze the context of character processing"
+      ],
+      "c2_indicators": [],
+      "stealth_indicators": [],
+      "data_types_accessed": [
+        "character_data"
+      ],
+      "network_actions": []
+    }
+  ]
+}

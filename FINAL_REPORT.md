@@ -159,6 +159,7 @@ The following plots can be generated from the saved Phase 4 artifacts to visuall
 - Reconstruction error distribution (normal vs trojan): ![](phase4/artifacts/plots/reconstruction_error_distribution.png)
 - ROC curve: ![](phase4/artifacts/plots/roc_curve.png)
 - Precision–Recall curve: ![](phase4/artifacts/plots/pr_curve.png)
+baseline precision is 0.857 due to test set imbalance (1:6 benign:trojan).
 
 To generate them:
 
@@ -183,41 +184,10 @@ python phase4/plot_evaluation.py --artifacts-dir phase4/artifacts
 - Train (recommended trojan-vs-normal evaluation):
   - `python phase4/train_anomaly.py --runs-dir phase3/data/runs --output-dir phase4/artifacts --device cuda --export-onnx --anomaly-mode trojan --train-labels normal --benign-eval-labels normal --threshold-percentile 95`
 
-## 6) Deployment Plan (TensorRT on Jetson)
 
-To complete the Phase 4 deployment loop on Jetson:
-
-1. Copy Phase 4 artifacts to Jetson:
-   - `model.onnx`, `scaler.pkl`, `features.json`, `threshold.json`
-2. Convert ONNX → TensorRT engine:
-   - Example: `trtexec --onnx=model.onnx --saveEngine=model.plan`
-3. Implement a real-time monitor process:
-   - Collect live telemetry at 10 Hz (reuse Phase 3 collectors)
-   - Maintain sliding windows
-   - Normalize with `scaler.pkl`
-   - Inference with TensorRT
-   - Emit anomaly scores + alert when exceeding threshold
-
-## 7) Limitations and Risks
+## 6) Limitations and Risks
 
 - **Dataset scale**: 12 runs × 60s from Jetson hardware is a reasonable PoC baseline; production deployment benefits from larger temporal coverage.
-- **Synthetic trojans**: compute/memory/I/O patterns are realistic proxies but not full malware.
 - **Thresholding**: percentile thresholds trade false positives vs missed detections; deployment needs tuning.
 
-## 8) Recommendations / Next Steps
 
-1. Collect a larger dataset on the Jetson hardware (multiple sessions/days, varying ambient temp, different power modes).
-2. Validate features across different nvpmodel/jetson_clocks configurations.
-3. Add evaluation plots:
-   - reconstruction error distribution (normal vs trojan)
-   - ROC curve / PR curve
-4. Build the Jetson `rt_monitor.py` loop (Phase 4.3) and validate end-to-end latency.
-
----
-
-## Appendix A — Repository Map
-
-- Phase 2 static analysis: `phase2/`
-- Phase 3 telemetry + workloads: `phase3/`
-- Phase 4 training + export: `phase4/`
-- Overall plan: `README.md`

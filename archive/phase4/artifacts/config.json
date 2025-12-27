@@ -1,0 +1,25 @@
+{
+  "runs_dir": "phase3/data/runs",
+  "window_size": 50,
+  "window_stride": 5,
+  "train_labels": [
+    "normal"
+  ],
+  "val_fraction": 0.2,
+  "test_fraction": 0.2,
+  "split_by": "run",
+  "batch_size": 64,
+  "epochs": 85,
+  "lr": 0.001,
+  "hidden_dim": 64,
+  "latent_dim": 32,
+  "threshold_percentile": 95.0,
+  "threshold_source": "train",
+  "anomaly_mode": "trojan",
+  "benign_eval_labels": [
+    "normal"
+  ],
+  "onnx_opset": 18,
+  "device": "cuda",
+  "seed": 42
+}

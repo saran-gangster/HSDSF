@@ -1,0 +1,18 @@
+{
+  "binary": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/firmware_clean",
+  "sha256": "7a4e6f5572ce42f2bec710a2c906a9958074047dffc7fd7341ca4fee96740093",
+  "arch": "Advanced Micro Devices X86-64",
+  "file": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/firmware_clean: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, BuildID[sha1]=0c318fdd5dc0a7abca2177ec8cd9f34d7d320541, for GNU/Linux 3.2.0, stripped",
+  "artifacts": {
+    "work_dir": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_clean_7a4e6f55",
+    "dis": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_clean_7a4e6f55/firmware_clean.dis",
+    "strings": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_clean_7a4e6f55/firmware_clean.strings",
+    "meta": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_clean_7a4e6f55/firmware_clean.meta",
+    "symbols": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_clean_7a4e6f55/firmware_clean.symbols",
+    "file": "/home/saran-gangster/Desktop/Implementations & Projects/HSDSF/phase2/tmp/firmware_clean_7a4e6f55/firmware_clean.file"
+  },
+  "function_count": 4,
+  "chunk_count": 434,
+  "selected_chunk_count": 30,
+  "notable_string_count": 80
+}
