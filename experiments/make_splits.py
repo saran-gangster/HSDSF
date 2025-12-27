@@ -19,6 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
+# Force unbuffered output
+def log(msg: str) -> None:
+    log(msg, flush=True)
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
@@ -89,20 +93,21 @@ def main() -> int:
     ap.add_argument("--holdout-ambient-ge", type=float, default=30.0)
     args = ap.parse_args()
 
-    print(f"Scanning {args.runs_dir}...")
+    log(f"Scanning {args.runs_dir}...")
     run_dirs = sorted([p for p in args.runs_dir.iterdir() if p.is_dir() and (p / "meta.json").exists()])
-    print(f"Found {len(run_dirs)} run directories")
+    log(f"Found {len(run_dirs)} run directories")
     if not run_dirs:
         raise SystemExit(f"No runs found under {args.runs_dir}")
 
     # Simple sequential load (ThreadPool can deadlock on some systems)
-    print("Loading metadata...")
+    log("Loading metadata...")
     metas = [_load_run_meta(p) for p in run_dirs]
-    print(f"Loaded {len(metas)} metadata files")
+    log(f"Loaded {len(metas)} metadata files")
     all_ids = [m.run_id for m in metas]
 
     # Random split (stratified by label distribution)
     if args.use_random_splits:
+        log("Creating random split...")
         import random
         rng = random.Random(args.seed)
         shuffled = all_ids[:]
@@ -113,6 +118,7 @@ def main() -> int:
         train = sorted(shuffled[:n_train])
         val = sorted(shuffled[n_train:n_train + n_val])
         test = sorted(shuffled[n_train + n_val:])
+        log(f"  Writing random_split.json ({len(train)}/{len(val)}/{len(test)})...")
         _write_manifest(
             args.out_dir / "random_split.json",
             train=train,
@@ -120,6 +126,9 @@ def main() -> int:
             test=test,
             notes=f"random_split: {len(train)}/{len(val)}/{len(test)} train/val/test",
         )
+        log("  Done.")
+
+    log("Creating unseen_workload split...")
 
     # unseen workload
     test = [m.run_id for m in metas if m.workload_family == args.holdout_workload]
@@ -158,7 +167,7 @@ def main() -> int:
         notes=f"unseen_regime=power_mode:{args.holdout_power_mode}|ambient_ge:{args.holdout_ambient_ge}",
     )
 
-    print(f"Wrote splits under: {args.out_dir}")
+    log(f"Wrote splits under: {args.out_dir}")
     return 0
 
 
