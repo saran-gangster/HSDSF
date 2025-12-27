@@ -63,8 +63,8 @@ def _is_trojan_binary(binary_id: str) -> bool:
     # In our simulator, binary_ids with certain patterns are trojan-related
     # This creates weak correlation for the static model to learn
     seed = _hash_to_seed(binary_id, "trojan_check")
-    # ~40% of binaries have trojan characteristics
-    return (seed % 100) < 40
+    # 50% of binaries have trojan characteristics (balanced for training)
+    return (seed % 100) < 50
 
 
 def extract_features(binary_id: str) -> StaticFeatures:

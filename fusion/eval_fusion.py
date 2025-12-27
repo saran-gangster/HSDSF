@@ -109,7 +109,7 @@ def _load_dynamic_predictions(
 
 def _load_fusion_model(fusion_dir: Path) -> UGFFusion:
     """Load trained fusion model."""
-    gate = UGFGate(n_meta_features=0, hidden_size=32)
+    gate = UGFGate(n_meta_features=0, hidden_size=64, use_predictions=True)
     model = UGFFusion(gate)
     model.load_state_dict(torch.load(fusion_dir / "fusion_model.pt", map_location="cpu"))
     model.eval()

@@ -20,6 +20,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from sklearn.metrics import average_precision_score, roc_auc_score
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -70,6 +71,46 @@ def _load_npz(path: Path) -> Dict[str, np.ndarray]:
 # Training utilities
 # ============================================================================
 
+def focal_loss_with_logits(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    gamma: float = 2.0,
+    alpha: float = 0.25,
+    pos_weight: float = 1.0,
+) -> torch.Tensor:
+    """Focal loss for handling class imbalance.
+    
+    Focuses learning on hard, misclassified examples by downweighting
+    easy examples where the model is already confident.
+    
+    Args:
+        logits: Raw model outputs (before sigmoid)
+        targets: Binary labels (0 or 1)
+        gamma: Focusing parameter (higher = more focus on hard examples)
+        alpha: Balance term for positive class
+        pos_weight: Additional weight for positive class
+    """
+    probs = torch.sigmoid(logits)
+    
+    # Binary cross entropy
+    bce = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
+    
+    # Probability of correct prediction
+    p_t = probs * targets + (1 - probs) * (1 - targets)
+    
+    # Focal weight: down-weight easy examples
+    focal_weight = (1 - p_t) ** gamma
+    
+    # Alpha weighting for class imbalance
+    alpha_t = alpha * targets + (1 - alpha) * (1 - targets)
+    
+    # Apply pos_weight to positive examples
+    sample_weight = torch.where(targets > 0.5, pos_weight, 1.0)
+    
+    loss = alpha_t * focal_weight * bce * sample_weight
+    return loss.mean()
+
+
 def train_single_model(
     model: nn.Module,
     train_loader: DataLoader,
@@ -80,13 +121,14 @@ def train_single_model(
     lr: float,
     patience: int = 10,
     pos_weight: float = 1.0,
+    use_focal_loss: bool = True,
 ) -> Tuple[nn.Module, float]:
     """Train a single model with early stopping, class weighting, and LR scheduling."""
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     
-    # Class weighting for imbalanced data
+    # Class weighting for imbalanced data (fallback if not using focal loss)
     pw = torch.tensor([pos_weight], device=device)
-    loss_fn = nn.BCEWithLogitsLoss(pos_weight=pw)
+    bce_loss_fn = nn.BCEWithLogitsLoss(pos_weight=pw)
     
     # Learning rate scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -103,17 +145,22 @@ def train_single_model(
             xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad(set_to_none=True)
             logits = model(xb)
-            loss = loss_fn(logits, yb)
+            
+            if use_focal_loss:
+                loss = focal_loss_with_logits(logits, yb, gamma=2.0, alpha=0.25, pos_weight=pos_weight)
+            else:
+                loss = bce_loss_fn(logits, yb)
+            
             loss.backward()
             # Gradient clipping for stable TCN training
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
         
-        # Validation
+        # Validation (always use BCE for consistent comparison)
         model.eval()
         with torch.no_grad():
             val_logits = model(val_X.to(device))
-            val_loss = loss_fn(val_logits, val_y.to(device)).item()
+            val_loss = bce_loss_fn(val_logits, val_y.to(device)).item()
         
         # Update LR scheduler
         scheduler.step(val_loss)

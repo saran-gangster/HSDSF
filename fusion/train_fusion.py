@@ -97,8 +97,8 @@ def train_gate(
 ) -> Tuple[UGFFusion, float]:
     """Train the UGF gate model."""
     
-    # Create model
-    gate = UGFGate(n_meta_features=0, hidden_size=32)
+    # Create model with enhanced gate (predictions + uncertainties as input)
+    gate = UGFGate(n_meta_features=0, hidden_size=64, use_predictions=True)
     model = UGFFusion(gate).to(device)
     
     # Prepare data
@@ -149,7 +149,8 @@ def train_gate(
             gate_entropy = -(g * torch.log(g + eps) + (1 - g) * torch.log(1 - g + eps)).mean()
             
             # Combined loss (maximize entropy = minimize negative entropy)
-            loss = bce_loss - 0.1 * gate_entropy
+            # Increased weight from 0.1 to 0.3 to prevent gate collapse
+            loss = bce_loss - 0.3 * gate_entropy
             
             loss.backward()
             optimizer.step()

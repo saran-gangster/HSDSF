@@ -49,9 +49,9 @@ echo "[Phase 1] Data Generation"
 echo "-------------------------"
 
 if [ ! -d "$DATA_DIR/runs/run_000001" ]; then
-    echo "Generating benchmark runs (120 runs)..."
+    echo "Generating benchmark runs (200 runs)..."
     "$PY" experiments/generate_fusionbench_sim.py \
-        --n-binaries 12 \
+        --n-binaries 20 \
         --runs-per-binary 10 \
         --duration-s 120 \
         --include-benign-confounders
@@ -160,8 +160,10 @@ for split in random_split unseen_workload unseen_trojan unseen_regime; do
             --out-dir "$DYN_DIR" \
             --model tcn \
             --n-ensemble 5 \
-            --epochs 30 \
-            --batch-size 128
+            --epochs 50 \
+            --batch-size 128 \
+            --lr 5e-4 \
+            --hidden-size 256
         
         echo "Calibrating dynamic expert for $split..."
         "$PY" dynamic/calibrate_dynamic.py \
