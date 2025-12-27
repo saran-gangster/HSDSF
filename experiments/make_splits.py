@@ -21,7 +21,7 @@ from typing import Dict, List, Sequence, Tuple
 
 # Force unbuffered output
 def log(msg: str) -> None:
-    log(msg, flush=True)
+    print(msg, flush=True)
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if REPO_ROOT not in sys.path:
