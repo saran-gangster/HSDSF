@@ -6,11 +6,10 @@
 # and produces paper-ready tables and figures.
 #
 # Prerequisites:
-# - Python 3.10+ with venv at .venv/
+# - Python 3.10+
 # - Required packages: numpy, pandas, torch, scikit-learn, matplotlib
 #
-# For GPU training (dynamic/fusion), use Colab with the provided notebooks.
-# This script runs CPU-capable steps locally.
+# Run on Google Colab with T4 GPU for full pipeline execution.
 # ============================================================================
 
 set -euo pipefail
@@ -44,7 +43,7 @@ echo "Python: $PY"
 echo ""
 
 # ============================================================================
-# Phase 1: Data Generation (runs locally)
+# Phase 1: Data Generation
 # ============================================================================
 echo "[Phase 1] Data Generation"
 echo "-------------------------"
@@ -75,7 +74,7 @@ echo "Creating split manifests..."
 echo ""
 
 # ============================================================================
-# Phase 2: Preprocessing (runs locally)
+# Phase 2: Preprocessing
 # ============================================================================
 echo "[Phase 2] Preprocessing"
 echo "-----------------------"
@@ -92,7 +91,7 @@ done
 echo ""
 
 # ============================================================================
-# Phase 3: Static Expert (runs locally - no GPU needed)
+# Phase 3: Static Expert (no GPU needed)
 # ============================================================================
 echo "[Phase 3] Static Expert"
 echo "-----------------------"
@@ -100,7 +99,7 @@ echo "-----------------------"
 STATIC_DIR="$MODELS_DIR/static"
 
 # Extract static features
-if [ ! -f "$DATA_DIR/binaries/static_features.parquet" ]; then
+if [ ! -f "$DATA_DIR/binaries/static_features.parquet" ] && [ ! -f "$DATA_DIR/binaries/static_features.csv" ]; then
     echo "Extracting static features..."
     "$PY" static/extract_static.py \
         --binaries-csv "$DATA_DIR/binaries/binaries.csv" \
@@ -112,8 +111,14 @@ fi
 # Train static ensemble
 if [ ! -f "$STATIC_DIR/ensemble.pkl" ]; then
     echo "Training static expert ensemble..."
+    # Use parquet if available, else CSV
+    if [ -f "$DATA_DIR/binaries/static_features.parquet" ]; then
+        FEATURES_FILE="$DATA_DIR/binaries/static_features.parquet"
+    else
+        FEATURES_FILE="$DATA_DIR/binaries/static_features.csv"
+    fi
     "$PY" static/train_static.py \
-        --features "$DATA_DIR/binaries/static_features.parquet" \
+        --features "$FEATURES_FILE" \
         --runs-dir "$DATA_DIR/runs" \
         --out-dir "$STATIC_DIR" \
         --n-ensemble 5
@@ -134,63 +139,66 @@ fi
 echo ""
 
 # ============================================================================
-# Phase 4: Dynamic Expert (requires GPU - run on Colab)
+# Phase 4: Dynamic Expert (GPU training)
 # ============================================================================
-echo "[Phase 4] Dynamic Expert"
-echo "------------------------"
-echo "NOTE: Dynamic training requires GPU. Run on Colab:"
-echo ""
-echo "For each split (unseen_workload, unseen_trojan, unseen_regime):"
-echo "  python dynamic/train_dynamic.py \\"
-echo "      --processed-dir data/fusionbench_sim/processed/{split} \\"
-echo "      --out-dir models/dynamic/{split} \\"
-echo "      --model tcn --n-ensemble 5 --epochs 20"
-echo ""
-echo "  python dynamic/calibrate_dynamic.py \\"
-echo "      --model-dir models/dynamic/{split}"
-echo ""
+echo "[Phase 4] Dynamic Expert (GPU)"
+echo "------------------------------"
 
-# Check if dynamic models exist
 for split in unseen_workload unseen_trojan unseen_regime; do
     DYN_DIR="$MODELS_DIR/dynamic/$split"
-    if [ -f "$DYN_DIR/model_0.pt" ]; then
-        echo "Dynamic model for $split: FOUND"
+    
+    if [ ! -f "$DYN_DIR/model_0.pt" ]; then
+        echo "Training dynamic expert for $split..."
+        "$PY" dynamic/train_dynamic.py \
+            --processed-dir "$DATA_DIR/processed/$split" \
+            --out-dir "$DYN_DIR" \
+            --model tcn \
+            --n-ensemble 5 \
+            --epochs 20 \
+            --batch-size 64
+        
+        echo "Calibrating dynamic expert for $split..."
+        "$PY" dynamic/calibrate_dynamic.py \
+            --model-dir "$DYN_DIR"
     else
-        echo "Dynamic model for $split: NOT FOUND (run on Colab)"
+        echo "Dynamic model for $split already exists."
     fi
 done
 
 echo ""
 
 # ============================================================================
-# Phase 5: Fusion (requires GPU - run on Colab after dynamic)
+# Phase 5: Fusion Training (GPU)
 # ============================================================================
-echo "[Phase 5] Fusion Training"
-echo "-------------------------"
-echo "NOTE: Fusion training requires dynamic models. Run on Colab after Phase 4:"
-echo ""
-echo "For each split:"
-echo "  python fusion/train_fusion.py \\"
-echo "      --processed-dir data/fusionbench_sim/processed/{split} \\"
-echo "      --static-dir models/static \\"
-echo "      --dynamic-dir models/dynamic/{split} \\"
-echo "      --out-dir models/fusion/{split}"
-echo ""
+echo "[Phase 5] Fusion Training (GPU)"
+echo "--------------------------------"
 
-# Check if fusion models exist
 for split in unseen_workload unseen_trojan unseen_regime; do
+    DYN_DIR="$MODELS_DIR/dynamic/$split"
     FUS_DIR="$MODELS_DIR/fusion/$split"
-    if [ -f "$FUS_DIR/fusion_model.pt" ]; then
-        echo "Fusion model for $split: FOUND"
+    
+    if [ ! -f "$FUS_DIR/fusion_model.pt" ]; then
+        if [ -f "$DYN_DIR/model_0.pt" ]; then
+            echo "Training fusion gate for $split..."
+            "$PY" fusion/train_fusion.py \
+                --processed-dir "$DATA_DIR/processed/$split" \
+                --static-dir "$STATIC_DIR" \
+                --dynamic-dir "$DYN_DIR" \
+                --out-dir "$FUS_DIR" \
+                --epochs 50 \
+                --patience 10
+        else
+            echo "Skipping fusion for $split (no dynamic model)."
+        fi
     else
-        echo "Fusion model for $split: NOT FOUND (run on Colab)"
+        echo "Fusion model for $split already exists."
     fi
 done
 
 echo ""
 
 # ============================================================================
-# Phase 6: Evaluation (runs after training, CPU OK)
+# Phase 6: Evaluation
 # ============================================================================
 echo "[Phase 6] Evaluation"
 echo "--------------------"
@@ -220,7 +228,7 @@ done
 echo ""
 
 # ============================================================================
-# Phase 7: Generate Figures (runs after evaluation)
+# Phase 7: Generate Figures
 # ============================================================================
 echo "[Phase 7] Figure Generation"
 echo "---------------------------"
@@ -250,11 +258,18 @@ echo ""
 # Summary
 # ============================================================================
 echo "========================================"
-echo "Pipeline Complete"
+echo "Pipeline Complete!"
 echo "========================================"
 echo ""
 echo "Results:  $RESULTS_DIR/"
 echo "Figures:  $FIG_DIR/"
 echo ""
-echo "To complete GPU training steps, follow the Colab instructions above."
+echo "Summary of outputs:"
+for split in unseen_workload unseen_trojan unseen_regime; do
+    if [ -f "$RESULTS_DIR/$split/results.csv" ]; then
+        echo "  ✓ $split: results available"
+    else
+        echo "  ✗ $split: no results"
+    fi
+done
 echo ""
