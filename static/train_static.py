@@ -23,32 +23,15 @@ from sklearn.model_selection import train_test_split
 
 
 def _load_binary_labels(runs_dir: Path, binaries_df: pd.DataFrame) -> pd.DataFrame:
-    """Load binary-level labels from run metadata.
+    """Assign binary-level labels using deterministic hashing.
     
-    A binary is labeled positive if ANY of its runs had trojan_family != 'none'.
+    Since we're using simulated binaries, we use the same hash-based logic
+    as the feature generator to ensure labels correlate with features.
     """
-    binary_labels = {}
+    from static.features.deterministic_elf import _is_trojan_binary
     
-    for run_dir in sorted(runs_dir.glob("run_*")):
-        meta_path = run_dir / "meta.json"
-        if not meta_path.exists():
-            continue
-        with meta_path.open("r", encoding="utf-8") as f:
-            meta = json.load(f)
-        
-        binary_id = meta.get("binary_id", "")
-        trojan_family = meta.get("trojan_family", "none")
-        
-        if binary_id:
-            # Binary is positive if any run has trojan
-            if trojan_family != "none":
-                binary_labels[binary_id] = 1
-            elif binary_id not in binary_labels:
-                binary_labels[binary_id] = 0
-    
-    # Merge with features
     df = binaries_df.copy()
-    df["label"] = df["binary_id"].map(binary_labels).fillna(0).astype(int)
+    df["label"] = df["binary_id"].apply(lambda x: 1 if _is_trojan_binary(x) else 0)
     return df
 
 
