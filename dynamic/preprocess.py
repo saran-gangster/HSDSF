@@ -198,12 +198,10 @@ def main() -> int:
         )
 
     def process_split(kind: str, run_ids: Sequence[str]) -> None:
-        Xs: List[np.ndarray] = []
-        Ys: List[np.ndarray] = []
-        Ts: List[np.ndarray] = []
-        R: List[str] = []
-        B: List[str] = []
-        for rid in run_ids:
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def process_single_run(rid: str):
+            """Process a single run and return results."""
             run_dir = args.runs_dir / rid
             df = _load_run_df(run_dir)
             df = _resample(df, hz=args.resample_hz)
@@ -225,12 +223,22 @@ def main() -> int:
                 stride_s=args.stride_s,
                 overlap_threshold=args.overlap_threshold,
             )
-            Xs.append(x)
-            Ys.append(y)
-            Ts.append(t_centers)
+            binary_id = str(df["binary_id"].iloc[0])
+            return x, y, t_centers, rid, binary_id
+        
+        # Process runs in parallel
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(process_single_run, run_ids))
+        
+        # Collect results
+        Xs = [r[0] for r in results]
+        Ys = [r[1] for r in results]
+        Ts = [r[2] for r in results]
+        R = []
+        B = []
+        for x, y, t_centers, rid, binary_id in results:
             R.extend([rid] * len(y))
-            # binary_id is constant in file; take from first row
-            B.extend([str(df["binary_id"].iloc[0])] * len(y))
+            B.extend([binary_id] * len(y))
 
         X = np.concatenate(Xs, axis=0) if Xs else np.zeros((0, 0, 0), dtype=np.float32)
         Y = np.concatenate(Ys, axis=0) if Ys else np.zeros((0,), dtype=np.int64)

@@ -66,8 +66,9 @@ def main() -> int:
     args.out_runs.mkdir(parents=True, exist_ok=True)
     binary_ids = [f"sim_binary_{i:04d}" for i in range(1, int(args.n_binaries) + 1)]
 
+    # Build list of run configs for parallel generation
+    run_configs = []
     run_idx = int(args.start_run)
-    created: List[str] = []
     for b_i, binary_id in enumerate(binary_ids):
         for r_i in range(int(args.runs_per_binary)):
             run_id = f"run_{run_idx:06d}"
@@ -110,16 +111,21 @@ def main() -> int:
                 benign_throttle_event_rate_hz=0.05 if args.include_benign_confounders else 0.0,
                 perf_multiplex_event_rate_hz=0.05 if args.include_benign_confounders else 0.0,
             )
-
-            generate_run(
-                out_root=str(args.out_runs),
-                run_id=run_id,
-                binary_id=binary_id,
-                cfg=cfg,
-                duration_s=float(args.duration_s),
-            )
-            created.append(run_id)
+            run_configs.append((str(args.out_runs), run_id, binary_id, cfg, float(args.duration_s)))
             run_idx += 1
+
+    # Parallel generation using ProcessPoolExecutor
+    from concurrent.futures import ProcessPoolExecutor
+    import multiprocessing
+    n_workers = min(multiprocessing.cpu_count(), 8)
+    
+    def _generate_single(config_tuple):
+        out_root, run_id, binary_id, cfg, duration_s = config_tuple
+        generate_run(out_root=out_root, run_id=run_id, binary_id=binary_id, cfg=cfg, duration_s=duration_s)
+        return run_id
+    
+    with ProcessPoolExecutor(max_workers=n_workers) as executor:
+        created = list(executor.map(_generate_single, run_configs))
 
     _write_binaries_csv(args.out_binaries, binary_ids)
     print(f"Wrote {len(created)} runs under {args.out_runs}")

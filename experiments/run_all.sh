@@ -84,12 +84,15 @@ echo "-----------------------"
 
 for split in random_split unseen_workload unseen_trojan unseen_regime; do
     if [ ! -f "$DATA_DIR/processed/$split/windows_train.npz" ]; then
-        echo "Preprocessing $split..."
-        "$PY" dynamic/preprocess.py --split "$DATA_DIR/splits/$split.json"
+        echo "Preprocessing $split (background)..."
+        "$PY" dynamic/preprocess.py --split "$DATA_DIR/splits/$split.json" &
     else
         echo "Preprocessed data for $split already exists."
     fi
 done
+# Wait for all preprocessing to complete
+wait
+echo "All preprocessing complete."
 
 echo ""
 
