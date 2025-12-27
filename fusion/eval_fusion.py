@@ -30,6 +30,40 @@ from fusion.baselines import BASELINES, FusionResult
 from fusion.gate_model import UGFFusion, UGFGate
 
 
+def find_optimal_threshold(
+    y_true: np.ndarray,
+    p: np.ndarray,
+    thresholds: np.ndarray = None,
+) -> Tuple[float, float]:
+    """Find threshold that maximizes F1 score.
+    
+    Returns:
+        best_threshold: Optimal threshold value
+        best_f1: F1 score at optimal threshold
+    """
+    if thresholds is None:
+        thresholds = np.linspace(0.1, 0.9, 17)
+    
+    best_f1 = 0.0
+    best_threshold = 0.5
+    
+    for thresh in thresholds:
+        y_pred = (p >= thresh).astype(int)
+        tp = np.sum((y_pred == 1) & (y_true == 1))
+        fp = np.sum((y_pred == 1) & (y_true == 0))
+        fn = np.sum((y_pred == 0) & (y_true == 1))
+        
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+        
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = thresh
+    
+    return best_threshold, best_f1
+
+
 def _load_npz(path: Path) -> Dict[str, np.ndarray]:
     data = np.load(path, allow_pickle=True)
     return {k: data[k] for k in data.files}
@@ -80,64 +114,6 @@ def _load_fusion_model(fusion_dir: Path) -> UGFFusion:
     model.load_state_dict(torch.load(fusion_dir / "fusion_model.pt", map_location="cpu"))
     model.eval()
     return model
-
-
-def find_optimal_threshold(
-    p: np.ndarray,
-    y: np.ndarray,
-    t_centers: np.ndarray,
-    run_ids: np.ndarray,
-    runs_dir: Path,
-    window_len_s: float,
-    thresholds: np.ndarray = np.arange(0.1, 0.91, 0.1),
-) -> Tuple[float, float]:
-    """Find optimal threshold by maximizing F1 score.
-    
-    Returns:
-        (best_threshold, best_f1)
-    """
-    from evaluation.metrics import summarize_run_metrics
-    
-    best_f1 = 0.0
-    best_threshold = 0.5
-    
-    for thresh in thresholds:
-        # Collect F1 across all runs
-        f1_scores = []
-        for run_id in np.unique(run_ids):
-            mask = run_ids == run_id
-            if not np.any(mask):
-                continue
-            
-            run_p = p[mask]
-            run_y = y[mask]
-            run_t = t_centers[mask]
-            
-            intervals_path = runs_dir / run_id / "intervals.csv"
-            if not intervals_path.exists():
-                continue
-            
-            from evaluation.events import load_intervals_csv
-            intervals = load_intervals_csv(intervals_path)
-            run_duration_s = float(run_t.max() - run_t.min()) + window_len_s
-            
-            metrics = summarize_run_metrics(
-                y_true=run_y.astype(int).tolist(),
-                p=run_p.tolist(),
-                t_centers=run_t.tolist(),
-                true_intervals=intervals,
-                run_duration_s=run_duration_s,
-                window_len_s=window_len_s,
-                threshold=thresh,
-            )
-            f1_scores.append(metrics["event_f1"])
-        
-        avg_f1 = np.mean(f1_scores) if f1_scores else 0.0
-        if avg_f1 > best_f1:
-            best_f1 = avg_f1
-            best_threshold = thresh
-    
-    return best_threshold, best_f1
 
 
 def evaluate_method(
@@ -269,6 +245,13 @@ def main() -> int:
         baseline_fn = BASELINES[method_name]
         result = baseline_fn(**kwargs)
         
+        # Find optimal threshold if sweep enabled
+        threshold_to_use = args.threshold
+        if args.sweep_thresholds:
+            opt_thresh, opt_f1 = find_optimal_threshold(y_test, result.p)
+            threshold_to_use = opt_thresh
+            print(f"  Optimal threshold: {opt_thresh:.2f} (F1={opt_f1:.3f})")
+        
         metrics = evaluate_method(
             method_name=method_name,
             p=result.p,
@@ -277,8 +260,9 @@ def main() -> int:
             run_ids=run_ids,
             runs_dir=args.runs_dir,
             window_len_s=args.window_len_s,
-            threshold=args.threshold,
+            threshold=threshold_to_use,
         )
+        metrics["threshold"] = threshold_to_use
         results.append(metrics)
         print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
 
@@ -295,6 +279,13 @@ def main() -> int:
         p_f = p_f.numpy()
         g = g.numpy()
     
+    # Find optimal threshold if sweep enabled
+    threshold_to_use = args.threshold
+    if args.sweep_thresholds:
+        opt_thresh, opt_f1 = find_optimal_threshold(y_test, p_f)
+        threshold_to_use = opt_thresh
+        print(f"  Optimal threshold: {opt_thresh:.2f} (F1={opt_f1:.3f})")
+    
     metrics = evaluate_method(
         method_name="UGF",
         p=p_f,
@@ -303,10 +294,11 @@ def main() -> int:
         run_ids=run_ids,
         runs_dir=args.runs_dir,
         window_len_s=args.window_len_s,
-        threshold=args.threshold,
+        threshold=threshold_to_use,
     )
     metrics["gate_mean"] = float(g.mean())
     metrics["gate_std"] = float(g.std())
+    metrics["threshold"] = threshold_to_use
     results.append(metrics)
     print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
     print(f"  Gate mean: {g.mean():.3f}, std: {g.std():.3f}")

@@ -79,7 +79,10 @@ def main() -> int:
     ap.add_argument("--runs-dir", type=Path, default=Path("data/fusionbench_sim/runs"))
     ap.add_argument("--out-dir", type=Path, default=Path("data/fusionbench_sim/splits"))
     ap.add_argument("--seed", type=int, default=1337)
+    ap.add_argument("--train-frac", type=float, default=0.6)
     ap.add_argument("--val-frac", type=float, default=0.2)
+    ap.add_argument("--use-random-splits", action="store_true",
+                    help="Also create a random (non-holdout) split for baseline comparison")
     ap.add_argument("--holdout-workload", type=str, default="cv_heavy")
     ap.add_argument("--holdout-trojan", type=str, default="compute")
     ap.add_argument("--holdout-power-mode", type=str, default="MAXN")
@@ -91,6 +94,27 @@ def main() -> int:
         raise SystemExit(f"No runs found under {args.runs_dir}")
 
     metas = [_load_run_meta(p) for p in run_dirs]
+    all_ids = [m.run_id for m in metas]
+
+    # Random split (stratified by label distribution)
+    if args.use_random_splits:
+        import random
+        rng = random.Random(args.seed)
+        shuffled = all_ids[:]
+        rng.shuffle(shuffled)
+        n = len(shuffled)
+        n_train = int(n * args.train_frac)
+        n_val = int(n * args.val_frac)
+        train = sorted(shuffled[:n_train])
+        val = sorted(shuffled[n_train:n_train + n_val])
+        test = sorted(shuffled[n_train + n_val:])
+        _write_manifest(
+            args.out_dir / "random_split.json",
+            train=train,
+            val=val,
+            test=test,
+            notes=f"random_split: {len(train)}/{len(val)}/{len(test)} train/val/test",
+        )
 
     # unseen workload
     test = [m.run_id for m in metas if m.workload_family == args.holdout_workload]
@@ -127,18 +151,6 @@ def main() -> int:
         val=val,
         test=sorted(test),
         notes=f"unseen_regime=power_mode:{args.holdout_power_mode}|ambient_ge:{args.holdout_ambient_ge}",
-    )
-
-    # Random split (no holdout - better for validation)
-    all_run_ids = [m.run_id for m in metas]
-    train_val, test = _stable_split(all_run_ids, val_frac=0.2, seed=args.seed + 50)
-    train, val = _stable_split(train_val, val_frac=0.2, seed=args.seed + 51)
-    _write_manifest(
-        args.out_dir / "random.json",
-        train=train,
-        val=val,
-        test=sorted(test),
-        notes="random_split=train:val:test=64:16:20",
     )
 
     print(f"Wrote splits under: {args.out_dir}")
