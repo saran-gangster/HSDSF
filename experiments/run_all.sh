@@ -33,6 +33,9 @@ MODELS_DIR="models"
 RESULTS_DIR="results"
 PAPER_DIR="paper"
 
+# Set PYTHONPATH so Python can find project modules
+export PYTHONPATH="$REPO_ROOT:${PYTHONPATH:-}"
+
 echo "========================================"
 echo "HSDSF-FusionBench Reproduction Pipeline"
 echo "========================================"
