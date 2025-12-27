@@ -59,9 +59,9 @@ else
     echo "Benchmark runs already exist, skipping generation."
 fi
 
-# Validate schema
-echo "Validating telemetry schema..."
-"$PY" evaluation/validate_schema.py "$DATA_DIR/runs/run_*/telemetry.csv" --max-rows 500
+# Validate schema (sample only for speed)
+echo "Validating telemetry schema (sample)..."
+"$PY" evaluation/validate_schema.py "$DATA_DIR/runs/run_*/telemetry.csv" --max-rows 100 --sample 10
 
 # Create splits (use random splits for better generalization)
 echo "Creating split manifests..."

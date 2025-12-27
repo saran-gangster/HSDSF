@@ -89,14 +89,16 @@ def main() -> int:
     ap.add_argument("--holdout-ambient-ge", type=float, default=30.0)
     args = ap.parse_args()
 
+    print(f"Scanning {args.runs_dir}...")
     run_dirs = sorted([p for p in args.runs_dir.iterdir() if p.is_dir() and (p / "meta.json").exists()])
+    print(f"Found {len(run_dirs)} run directories")
     if not run_dirs:
         raise SystemExit(f"No runs found under {args.runs_dir}")
 
-    # Parallel load metadata for speed (120 files → ~10x faster)
-    from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        metas = list(executor.map(_load_run_meta, run_dirs))
+    # Simple sequential load (ThreadPool can deadlock on some systems)
+    print("Loading metadata...")
+    metas = [_load_run_meta(p) for p in run_dirs]
+    print(f"Loaded {len(metas)} metadata files")
     all_ids = [m.run_id for m in metas]
 
     # Random split (stratified by label distribution)
