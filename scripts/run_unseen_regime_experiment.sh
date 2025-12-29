@@ -24,10 +24,8 @@ echo "Output: data/fusionbench_sim/processed/unseen_regime_perrun/"
 echo ""
 echo "Step 2: Training dynamic expert on per-run normalized data..."
 echo "========================================="
-# Note: You'll need to modify train_dynamic.py to accept a --data-dir argument
-# or manually update the default path
 python -m dynamic.train_dynamic \
-    --data-dir data/fusionbench_sim/processed/unseen_regime_perrun \
+    --processed-dir data/fusionbench_sim/processed/unseen_regime_perrun \
     --out-dir models/dynamic_unseen_regime_perrun \
     --epochs 30
 
@@ -36,7 +34,7 @@ echo ""
 echo "Step 3: Calibrating dynamic expert..."
 echo "========================================="
 python -m dynamic.calibrate_dynamic \
-    --data-dir data/fusionbench_sim/processed/unseen_regime_perrun \
+    --processed-dir data/fusionbench_sim/processed/unseen_regime_perrun \
     --model-dir models/dynamic_unseen_regime_perrun
 
 # Step 4: Evaluate fusion
