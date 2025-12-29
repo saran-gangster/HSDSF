@@ -83,6 +83,44 @@ def _add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def normalize_per_run(
+    df: pd.DataFrame,
+    features: List[str],
+    warmup_steps: int = 200,
+) -> pd.DataFrame:
+    """Normalize each feature by run warmup baseline.
+    
+    ML Expert recommendation for unseen_regime fix:
+    "Normalize each channel by a run baseline (warm-up mean/var) or rolling mean/var.
+    This often gives the single biggest jump for power/thermal telemetry because
+    it removes absolute-level shifts."
+    
+    Args:
+        df: DataFrame with run_id column
+        features: List of feature columns to normalize
+        warmup_steps: Number of initial steps to use as baseline
+    
+    Returns:
+        DataFrame with normalized features (original columns replaced)
+    """
+    out = df.copy()
+    
+    for run_id in out["run_id"].unique():
+        run_mask = out["run_id"] == run_id
+        run_df = out.loc[run_mask, features]
+        
+        # Compute baseline from warmup period
+        warmup = run_df.iloc[:warmup_steps]
+        baseline_mean = warmup.mean()
+        baseline_std = warmup.std() + 1e-6
+        
+        # Normalize
+        normalized = (run_df - baseline_mean) / baseline_std
+        out.loc[run_mask, features] = normalized.values
+    
+    return out
+
+
 def _resample(df: pd.DataFrame, *, hz: float) -> pd.DataFrame:
     """Resample to a fixed cadence using t_sim_s as the index."""
     if hz <= 0:
