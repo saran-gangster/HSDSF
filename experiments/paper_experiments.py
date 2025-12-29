@@ -386,7 +386,7 @@ def main():
     # Evaluate key methods at FAR targets
     methods = {
         "dynamic_only": p_d,
-        "UGF (g=0.80)": 0.80 * p_d + 0.20 * p_s,
+        "UGF (g=0.95)": 0.95 * p_d + 0.05 * p_s,
         f"constant_gate (g={best_g})": best_g * p_d + (1 - best_g) * p_s,
     }
     
@@ -439,12 +439,12 @@ def main():
     print("TEMPORAL SMOOTHING (DEBOUNCE)")
     print("="*60)
     
-    # Evaluate UGF with debounce
-    p_ugf = 0.80 * p_d + 0.20 * p_s
+    # Evaluate UGF with debounce (g=0.95)
+    p_ugf = 0.95 * p_d + 0.05 * p_s
     debounce_df = evaluate_with_debounce(
         p_ugf, y_test, run_ids, args.window_len_s,
         k_values=[1, 2, 3, 5],
-        threshold=0.15  # UGF optimal threshold
+        threshold=0.40  # Higher threshold for g=0.95
     )
     print("UGF with debounce (threshold=0.15):")
     print(debounce_df.to_string(index=False))
