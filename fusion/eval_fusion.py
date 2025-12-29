@@ -340,6 +340,8 @@ def main() -> int:
         metrics["threshold"] = threshold_to_use
         results.append(metrics)
         print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
+        # Debug: show score distribution to verify PR-AUC is computed on correct scores
+        print(f"  Score stats: mean={result.p.mean():.4f}, std={result.p.std():.4f}, min={result.p.min():.4f}, max={result.p.max():.4f}")
 
     # Evaluate UGF (only if fusion model exists)
     fusion_model_path = args.fusion_dir / "fusion_model.pt"
