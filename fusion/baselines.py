@@ -198,6 +198,136 @@ def hierarchical_veto(
     return FusionResult(p=p, method=f"hierarchical_veto_t{cap_threshold}")
 
 
+# ============================================================================
+# ABLATION METHODS (for understanding UGF success)
+# ============================================================================
+
+def constant_gate(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    g_value: float = 0.80,
+    **kwargs,
+) -> FusionResult:
+    """Ablation: Replace learned gate with constant value.
+    
+    If this matches UGF performance, the gain is from global rescaling,
+    not input-dependent routing.
+    """
+    p = g_value * p_d + (1 - g_value) * p_s
+    g = np.full_like(p_d, g_value)
+    return FusionResult(p=p, method=f"constant_gate_{g_value}", g=g)
+
+
+def shuffle_static(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    u_s: np.ndarray,
+    u_d: np.ndarray,
+    seed: int = 42,
+    **kwargs,
+) -> FusionResult:
+    """Ablation: Shuffle p_s across samples to break binary-window correspondence.
+    
+    If F1 barely changes with shuffled static, static isn't providing real signal.
+    Uses hierarchical fusion formula with shuffled p_s.
+    """
+    rng = np.random.RandomState(seed)
+    p_s_shuffled = rng.permutation(p_s)
+    p = p_s_shuffled * p_d
+    return FusionResult(p=p, method="shuffle_static")
+
+
+def remove_static_pathway(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    u_s: np.ndarray,
+    u_d: np.ndarray,
+    g_value: float = 0.80,
+    **kwargs,
+) -> FusionResult:
+    """Ablation: UGF-style fusion with (1-g)*p_s = 0.
+    
+    This isolates whether the gate is doing useful nonlinear transformation
+    of p_d via the MLP, separate from the static contribution.
+    """
+    # p_fusion = g * p_d + (1-g) * 0 = g * p_d
+    p = g_value * p_d
+    return FusionResult(p=p, method="remove_static_pathway")
+
+
+# ============================================================================
+# IMPROVED FUSION METHODS (ML Expert recommended)
+# ============================================================================
+
+def soft_veto(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    tau: float = 0.5,
+    steepness: float = 10.0,
+    **kwargs,
+) -> FusionResult:
+    """Soft veto: Use static only to suppress benign binaries.
+    
+    Applies a steep sigmoid suppression when p_s < tau:
+    p_active = p_d * sigmoid(steepness * (p_s - tau))
+    
+    This is the ML-expert-recommended way to use static:
+    - Can't help distinguish active/inactive within trojan binaries
+    - CAN reduce FAR on benign binaries
+    """
+    veto_factor = 1.0 / (1.0 + np.exp(-steepness * (p_s - tau)))
+    p = p_d * veto_factor
+    return FusionResult(p=p, method=f"soft_veto_t{tau}")
+
+
+def logit_stacking(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    u_d: np.ndarray,
+    y_train: np.ndarray,
+    p_s_train: np.ndarray,
+    p_d_train: np.ndarray,
+    u_d_train: np.ndarray = None,
+    **kwargs,
+) -> FusionResult:
+    """Logit-space stacking: logit(p) = a*logit(p_d) + b*logit(p_s) + c*u_d + d
+    
+    ML Expert: "Often strictly better than averaging. Keeps static-can-boost-when-
+    helpful behavior that multiplication can't provide."
+    """
+    eps = 1e-6
+    
+    def to_logit(p):
+        p_clip = np.clip(p, eps, 1 - eps)
+        return np.log(p_clip / (1 - p_clip))
+    
+    # Build features: logit(p_d), logit(p_s), u_d
+    logit_pd_train = to_logit(p_d_train)
+    logit_ps_train = to_logit(p_s_train)
+    
+    if u_d_train is None:
+        X_train = np.column_stack([logit_pd_train, logit_ps_train])
+    else:
+        X_train = np.column_stack([logit_pd_train, logit_ps_train, u_d_train])
+    
+    # Fit logistic regression
+    clf = LogisticRegression(max_iter=1000, solver="lbfgs", C=1.0)
+    clf.fit(X_train, y_train)
+    
+    # Apply to test
+    logit_pd = to_logit(p_d)
+    logit_ps = to_logit(p_s)
+    
+    if u_d_train is None:
+        X_test = np.column_stack([logit_pd, logit_ps])
+    else:
+        X_test = np.column_stack([logit_pd, logit_ps, u_d])
+    
+    p = clf.predict_proba(X_test)[:, 1]
+    
+    return FusionResult(p=p, method="logit_stacking")
+
+
 # Registry of all baseline methods
 BASELINES = {
     "static_only": static_only,
@@ -210,6 +340,13 @@ BASELINES = {
     "heuristic_both_gate": heuristic_both_uncertainty_gate,
     "hierarchical": hierarchical,
     "hierarchical_veto": hierarchical_veto,
+    # Ablation methods
+    "constant_gate": constant_gate,
+    "shuffle_static": shuffle_static,
+    "remove_static_pathway": remove_static_pathway,
+    # ML Expert recommended
+    "soft_veto": soft_veto,
+    "logit_stacking": logit_stacking,
 }
 
 

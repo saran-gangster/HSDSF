@@ -240,9 +240,20 @@ def main() -> int:
         ("logit_add", {"p_s": p_s, "p_d": p_d}),
         ("heuristic_gate", {"p_s": p_s, "p_d": p_d, "u_d": u_d, "alpha": 5.0}),
         ("heuristic_both_gate", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d, "alpha": 5.0}),
-        # Hierarchical fusion methods (ML expert recommended)
+        # Hierarchical fusion methods
         ("hierarchical", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d}),
         ("hierarchical_veto", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d, "cap_threshold": 0.5}),
+        # Ablation methods (ML Expert Round 2)
+        ("constant_gate", {"p_s": p_s, "p_d": p_d, "g_value": 0.80}),
+        ("shuffle_static", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d, "seed": 42}),
+        ("remove_static_pathway", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d, "g_value": 0.80}),
+        # ML Expert recommended methods
+        ("soft_veto", {"p_s": p_s, "p_d": p_d, "tau": 0.5, "steepness": 10.0}),
+        ("logit_stacking", {
+            "p_s": p_s, "p_d": p_d, "u_d": u_d,
+            "y_train": y_train, "p_s_train": p_s_train, "p_d_train": p_d_train,
+            "u_d_train": u_d_train,
+        }),
     ]
     
     for method_name, kwargs in baseline_methods:
