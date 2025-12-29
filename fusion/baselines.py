@@ -328,6 +328,35 @@ def logit_stacking(
     return FusionResult(p=p, method="logit_stacking")
 
 
+def piecewise_gate(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    tau_s: float = 0.5,
+    g_trojan: float = 0.80,
+    g_benign: float = 0.95,
+    **kwargs,
+) -> FusionResult:
+    """Piecewise-constant gate: simple, interpretable 2-parameter fusion.
+    
+    ML Expert Round 3: "Use a piecewise-constant gate with 2 parameters.
+    This preserves the 'static suppresses benign / boosts trojan' effect
+    with an extra degree of freedom that often recovers most of what a 
+    learned gate is doing, without brittle per-window routing."
+    
+    Args:
+        p_s: Static predictions
+        p_d: Dynamic predictions
+        tau_s: Threshold for trojan vs benign classification
+        g_trojan: Gate value for trojan binaries (p_s >= tau_s)
+        g_benign: Gate value for benign binaries (p_s < tau_s)
+    """
+    # Piecewise gate based on static prediction
+    g = np.where(p_s >= tau_s, g_trojan, g_benign)
+    p = g * p_d + (1 - g) * p_s
+    
+    return FusionResult(p=p, method=f"piecewise_gate_t{g_trojan}_{g_benign}", g=g)
+
+
 # Registry of all baseline methods
 BASELINES = {
     "static_only": static_only,
@@ -347,6 +376,7 @@ BASELINES = {
     # ML Expert recommended
     "soft_veto": soft_veto,
     "logit_stacking": logit_stacking,
+    "piecewise_gate": piecewise_gate,
 }
 
 

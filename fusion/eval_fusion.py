@@ -64,6 +64,63 @@ def find_optimal_threshold(
     return best_threshold, best_f1
 
 
+def find_threshold_at_target_far(
+    y_true: np.ndarray,
+    p: np.ndarray,
+    run_ids: np.ndarray,
+    window_len_s: float,
+    target_far_per_hour: float,
+    thresholds: np.ndarray = None,
+) -> Tuple[float, float]:
+    """Find threshold that achieves target FAR/hour.
+    
+    ML Expert Round 3: "Pick thresholds that achieve the same FAR/hour and
+    compare TTD + missed-event rate. FAR/hour and TTD at a fixed FAR are
+    usually the operational truth."
+    
+    Returns:
+        threshold: Threshold achieving target FAR (or closest below)
+        actual_far: Achieved FAR at that threshold
+    """
+    if thresholds is None:
+        thresholds = np.linspace(0.01, 0.99, 200)
+    
+    # Compute FAR at each threshold
+    # FAR = false_positives_per_hour across runs
+    best_threshold = thresholds[-1]  # Start with highest (lowest FAR)
+    best_far_diff = float('inf')
+    
+    for thresh in sorted(thresholds, reverse=True):  # High to low thresh
+        y_pred = (p >= thresh).astype(int)
+        
+        # False positives: predicted 1, actual 0
+        fp = (y_pred == 1) & (y_true == 0)
+        
+        # Compute FAR per hour
+        unique_runs = np.unique(run_ids)
+        total_fp = 0
+        total_hours = 0
+        for run in unique_runs:
+            run_mask = run_ids == run
+            run_fp = np.sum(fp[run_mask])
+            run_windows = np.sum(run_mask)
+            run_hours = run_windows * window_len_s / 3600
+            total_fp += run_fp
+            total_hours += run_hours
+        
+        far_per_hour = total_fp / total_hours if total_hours > 0 else 0
+        
+        # Find threshold closest to target without exceeding
+        if far_per_hour <= target_far_per_hour:
+            far_diff = target_far_per_hour - far_per_hour
+            if far_diff < best_far_diff:
+                best_far_diff = far_diff
+                best_threshold = thresh
+                best_far = far_per_hour
+    
+    return best_threshold, best_far if best_far_diff < float('inf') else 0.0
+
+
 def _load_npz(path: Path) -> Dict[str, np.ndarray]:
     data = np.load(path, allow_pickle=True)
     return {k: data[k] for k in data.files}
@@ -254,6 +311,8 @@ def main() -> int:
             "y_train": y_train, "p_s_train": p_s_train, "p_d_train": p_d_train,
             "u_d_train": u_d_train,
         }),
+        # ML Expert Round 3: piecewise-constant gate (interpretable 2-param fusion)
+        ("piecewise_gate", {"p_s": p_s, "p_d": p_d, "tau_s": 0.5, "g_trojan": 0.80, "g_benign": 0.95}),
     ]
     
     for method_name, kwargs in baseline_methods:
