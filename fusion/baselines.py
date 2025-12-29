@@ -20,6 +20,7 @@ class FusionResult:
     p: np.ndarray  # Fused probabilities [N]
     method: str
     g: Optional[np.ndarray] = None  # Gate values if applicable
+    u: Optional[np.ndarray] = None  # Uncertainty if applicable
 
 
 def static_only(p_s: np.ndarray, **kwargs) -> FusionResult:
