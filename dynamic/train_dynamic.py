@@ -301,9 +301,12 @@ def main() -> int:
     # Evaluate ensemble
     p_val, u_val, logits_val = predict_ensemble(models, X_val_tensor, device)
     
-    if len(np.unique(y_val)) > 1:
-        val_auc = roc_auc_score(y_val, p_val)
-        val_pr = average_precision_score(y_val, p_val)
+    # Convert soft labels to binary for AUC evaluation (threshold at 0.5)
+    y_val_binary = (y_val >= 0.5).astype(np.int32)
+    
+    if len(np.unique(y_val_binary)) > 1:
+        val_auc = roc_auc_score(y_val_binary, p_val)
+        val_pr = average_precision_score(y_val_binary, p_val)
     else:
         val_auc = float("nan")
         val_pr = float("nan")
@@ -358,9 +361,11 @@ def main() -> int:
             p=p_test, u=u_test, logits=logits_test, y=y_test,
         )
         
-        if len(np.unique(y_test)) > 1:
-            test_auc = roc_auc_score(y_test, p_test)
-            test_pr = average_precision_score(y_test, p_test)
+        # Convert soft labels to binary for AUC evaluation
+        y_test_binary = (y_test >= 0.5).astype(np.int32)
+        if len(np.unique(y_test_binary)) > 1:
+            test_auc = roc_auc_score(y_test_binary, p_test)
+            test_pr = average_precision_score(y_test_binary, p_test)
             print(f"Test AUC: {test_auc:.4f}, PR-AUC: {test_pr:.4f}")
 
     # Save metadata

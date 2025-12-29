@@ -248,13 +248,14 @@ def main() -> int:
         p_f_val = p_f_val.numpy()
         g_val = g_val.numpy()
     
-    # Compute metrics
+    # Compute metrics (convert soft labels to binary for AUC)
     from sklearn.metrics import average_precision_score, roc_auc_score
-    if len(np.unique(y_val)) > 1:
-        val_auc = roc_auc_score(y_val, p_f_val)
-        val_pr = average_precision_score(y_val, p_f_val)
-        dyn_auc = roc_auc_score(y_val, p_d_val)
-        dyn_pr = average_precision_score(y_val, p_d_val)
+    y_val_binary = (y_val >= 0.5).astype(np.int32)
+    if len(np.unique(y_val_binary)) > 1:
+        val_auc = roc_auc_score(y_val_binary, p_f_val)
+        val_pr = average_precision_score(y_val_binary, p_f_val)
+        dyn_auc = roc_auc_score(y_val_binary, p_d_val)
+        dyn_pr = average_precision_score(y_val_binary, p_d_val)
     else:
         val_auc = val_pr = dyn_auc = dyn_pr = float("nan")
     

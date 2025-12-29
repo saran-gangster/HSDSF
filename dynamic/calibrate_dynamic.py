@@ -75,7 +75,8 @@ def main() -> int:
     
     data = np.load(val_path)
     logits = data["logits"]
-    y = data["y"]
+    y_soft = data["y"]
+    y = (y_soft >= 0.5).astype(np.float32)  # Convert soft to binary for calibration
     
     # Find optimal temperature
     temperature, ece_before, ece_after = _calibrate_temperature(logits, y)

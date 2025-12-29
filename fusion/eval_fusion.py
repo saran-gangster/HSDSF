@@ -203,7 +203,8 @@ def main() -> int:
         return 1
     
     test_data = _load_npz(test_path)
-    y_test = test_data["y"].astype(np.float32)
+    y_test_soft = test_data["y"].astype(np.float32)
+    y_test = (y_test_soft >= 0.5).astype(np.float32)  # Convert soft to binary for evaluation
     t_centers = test_data.get("t_center", np.arange(len(y_test)))
     run_ids = test_data.get("run_id", np.array(["run_000001"] * len(y_test)))
     binary_ids = test_data.get("binary_id", np.array(["unknown"] * len(y_test)))
@@ -221,7 +222,8 @@ def main() -> int:
     train_data = _load_npz(args.processed_dir / "windows_train.npz")
     train_binary_ids = train_data.get("binary_id", np.array(["unknown"] * len(train_data["y"])))
     p_s_train, u_s_train = _load_static_predictions(args.static_dir, train_binary_ids)
-    p_d_train, u_d_train, y_train = _load_dynamic_predictions(args.dynamic_dir, "train")
+    p_d_train, u_d_train, y_train_soft = _load_dynamic_predictions(args.dynamic_dir, "train")
+    y_train = (y_train_soft >= 0.5).astype(np.float32)  # Convert soft to binary
 
     results: List[Dict[str, float]] = []
 
