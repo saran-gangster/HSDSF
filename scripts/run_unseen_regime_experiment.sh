@@ -34,7 +34,6 @@ echo ""
 echo "Step 3: Calibrating dynamic expert..."
 echo "========================================="
 python -m dynamic.calibrate_dynamic \
-    --processed-dir data/fusionbench_sim/processed/unseen_regime_perrun \
     --model-dir models/dynamic_unseen_regime_perrun
 
 # Step 4: Evaluate fusion
