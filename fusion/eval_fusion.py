@@ -238,6 +238,9 @@ def main() -> int:
         ("logit_add", {"p_s": p_s, "p_d": p_d}),
         ("heuristic_gate", {"p_s": p_s, "p_d": p_d, "u_d": u_d, "alpha": 5.0}),
         ("heuristic_both_gate", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d, "alpha": 5.0}),
+        # Hierarchical fusion methods (ML expert recommended)
+        ("hierarchical", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d}),
+        ("hierarchical_veto", {"p_s": p_s, "p_d": p_d, "u_s": u_s, "u_d": u_d, "cap_threshold": 0.5}),
     ]
     
     for method_name, kwargs in baseline_methods:
@@ -266,42 +269,47 @@ def main() -> int:
         results.append(metrics)
         print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
 
-    # Evaluate UGF
-    print(f"\nEvaluating UGF...")
-    model = _load_fusion_model(args.fusion_dir)
-    with torch.no_grad():
-        p_f, g = model.forward_with_gate(
-            torch.from_numpy(p_s),
-            torch.from_numpy(p_d),
-            torch.from_numpy(u_s),
-            torch.from_numpy(u_d),
+    # Evaluate UGF (only if fusion model exists)
+    fusion_model_path = args.fusion_dir / "fusion_model.pt"
+    if fusion_model_path.exists():
+        print(f"\nEvaluating UGF...")
+        model = _load_fusion_model(args.fusion_dir)
+        with torch.no_grad():
+            p_f, g = model.forward_with_gate(
+                torch.from_numpy(p_s),
+                torch.from_numpy(p_d),
+                torch.from_numpy(u_s),
+                torch.from_numpy(u_d),
+            )
+            p_f = p_f.numpy()
+            g = g.numpy()
+        
+        # Find optimal threshold if sweep enabled
+        threshold_to_use = args.threshold
+        if args.sweep_thresholds:
+            opt_thresh, opt_f1 = find_optimal_threshold(y_test, p_f)
+            threshold_to_use = opt_thresh
+            print(f"  Optimal threshold: {opt_thresh:.2f} (F1={opt_f1:.3f})")
+        
+        metrics = evaluate_method(
+            method_name="UGF",
+            p=p_f,
+            y=y_test,
+            t_centers=t_centers,
+            run_ids=run_ids,
+            runs_dir=args.runs_dir,
+            window_len_s=args.window_len_s,
+            threshold=threshold_to_use,
         )
-        p_f = p_f.numpy()
-        g = g.numpy()
-    
-    # Find optimal threshold if sweep enabled
-    threshold_to_use = args.threshold
-    if args.sweep_thresholds:
-        opt_thresh, opt_f1 = find_optimal_threshold(y_test, p_f)
-        threshold_to_use = opt_thresh
-        print(f"  Optimal threshold: {opt_thresh:.2f} (F1={opt_f1:.3f})")
-    
-    metrics = evaluate_method(
-        method_name="UGF",
-        p=p_f,
-        y=y_test,
-        t_centers=t_centers,
-        run_ids=run_ids,
-        runs_dir=args.runs_dir,
-        window_len_s=args.window_len_s,
-        threshold=threshold_to_use,
-    )
-    metrics["gate_mean"] = float(g.mean())
-    metrics["gate_std"] = float(g.std())
-    metrics["threshold"] = threshold_to_use
-    results.append(metrics)
-    print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
-    print(f"  Gate mean: {g.mean():.3f}, std: {g.std():.3f}")
+        metrics["gate_mean"] = float(g.mean())
+        metrics["gate_std"] = float(g.std())
+        metrics["threshold"] = threshold_to_use
+        results.append(metrics)
+        print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
+        print(f"  Gate mean: {g.mean():.3f}, std: {g.std():.3f}")
+    else:
+        print(f"\nSkipping UGF evaluation (no fusion model at {fusion_model_path})")
+        print("  Note: Hierarchical fusion methods don't require training.")
 
     # Save results
     args.out_dir.mkdir(parents=True, exist_ok=True)

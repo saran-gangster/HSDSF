@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
-from evaluation.events import load_intervals_csv, window_label
+from evaluation.events import load_intervals_csv, window_label, window_label_soft
 
 
 IDENTITY_COLS = {
@@ -118,7 +118,14 @@ def _windowize_run(
     window_len_s: float,
     stride_s: float,
     overlap_threshold: float,
+    use_soft_labels: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract windows from a run with soft or hard labels.
+    
+    Args:
+        use_soft_labels: If True, return continuous labels [0,1] based on
+            overlap fraction. This improves training on boundary windows.
+    """
     intervals = load_intervals_csv(intervals_path)
     t = df["t_sim_s"].to_numpy(dtype=np.float64)
     x = df[list(features)].to_numpy(dtype=np.float32)
@@ -133,17 +140,25 @@ def _windowize_run(
         raise ValueError("window_len_s too small for cadence")
 
     xs: List[np.ndarray] = []
-    ys: List[int] = []
+    ys: List[float] = []  # Changed to float for soft labels
     t_centers: List[float] = []
     for start in range(0, len(t) - win_n + 1, stride_n):
         end = start + win_n
         t_start = float(t[start])
         t_end = float(t[end - 1])
-        yc = window_label(t_start=t_start, t_end=t_end, intervals=intervals, overlap_threshold=overlap_threshold)
+        
+        if use_soft_labels:
+            # Soft label: continuous overlap fraction [0, 1]
+            yc = window_label_soft(t_start=t_start, t_end=t_end, intervals=intervals)
+        else:
+            # Hard label: binary based on threshold
+            yc = float(window_label(t_start=t_start, t_end=t_end, intervals=intervals, overlap_threshold=overlap_threshold))
+        
         xs.append(x[start:end])
-        ys.append(int(yc))
+        ys.append(yc)
         t_centers.append(0.5 * (t_start + t_end))
-    return np.stack(xs, axis=0), np.asarray(ys, dtype=np.int64), np.asarray(t_centers, dtype=np.float64)
+    
+    return np.stack(xs, axis=0), np.asarray(ys, dtype=np.float32), np.asarray(t_centers, dtype=np.float64)
 
 
 def _save_npz(path: Path, **arrays: object) -> None:

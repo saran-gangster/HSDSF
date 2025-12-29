@@ -151,6 +151,52 @@ def heuristic_both_uncertainty_gate(
     return FusionResult(p=p, method=f"heuristic_both_gate_alpha{alpha}", g=g)
 
 
+def hierarchical(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    u_s: np.ndarray,
+    u_d: np.ndarray,
+    **kwargs,
+) -> FusionResult:
+    """Hierarchical fusion: p_active = p_cap × p_act_given_cap
+    
+    This is the correct probabilistic decomposition:
+    - p_s = P(capability) = "Is this binary capable of trojan behavior?"
+    - p_d = P(activation | capability) = "Is trojan active NOW?"
+    - p_active = p_cap × p_act|cap
+    
+    The static expert acts as a prior/FAR reducer on benign binaries.
+    This is the recommended approach from ML expert review.
+    """
+    # Multiplicative combination (prior × likelihood)
+    p = p_s * p_d
+    
+    # Uncertainty propagation: std(X*Y) ≈ sqrt((Y*σ_X)² + (X*σ_Y)²)
+    u = np.sqrt((p_d * u_s)**2 + (p_s * u_d)**2)
+    
+    return FusionResult(p=p, method="hierarchical", u=u)
+
+
+def hierarchical_veto(
+    p_s: np.ndarray,
+    p_d: np.ndarray,
+    u_s: np.ndarray,
+    u_d: np.ndarray,
+    cap_threshold: float = 0.5,
+    **kwargs,
+) -> FusionResult:
+    """Hierarchical with hard veto: if p_cap < threshold, output 0.
+    
+    This is a more aggressive version that completely suppresses
+    detection on binaries the static expert considers benign.
+    """
+    # Veto: set p to 0 when capability is low
+    veto_mask = (p_s >= cap_threshold).astype(np.float32)
+    p = veto_mask * p_d
+    
+    return FusionResult(p=p, method=f"hierarchical_veto_t{cap_threshold}")
+
+
 # Registry of all baseline methods
 BASELINES = {
     "static_only": static_only,
@@ -161,6 +207,8 @@ BASELINES = {
     "logit_add": logit_add,
     "heuristic_gate": heuristic_uncertainty_gate,
     "heuristic_both_gate": heuristic_both_uncertainty_gate,
+    "hierarchical": hierarchical,
+    "hierarchical_veto": hierarchical_veto,
 }
 
 
@@ -169,3 +217,4 @@ def get_baseline(name: str):
     if name not in BASELINES:
         raise ValueError(f"Unknown baseline: {name}. Available: {list(BASELINES.keys())}")
     return BASELINES[name]
+

@@ -35,6 +35,31 @@ def interval_overlap(a: Interval, b: Interval) -> float:
     return max(0.0, e - s)
 
 
+def window_label_soft(
+    *,
+    t_start: float,
+    t_end: float,
+    intervals: Sequence[Interval],
+) -> float:
+    """Compute soft label: fraction of window overlapping with trojan intervals.
+    
+    Returns a value in [0, 1] representing total overlap fraction.
+    This is better for training as it handles boundary windows smoothly.
+    """
+    if t_end <= t_start:
+        return 0.0
+    w = Interval(t_start, t_end)
+    wlen = t_end - t_start
+    
+    # Sum overlap with all intervals (clamped to window length)
+    total_overlap = 0.0
+    for it in intervals:
+        total_overlap += interval_overlap(w, it)
+    
+    # Clamp to [0, 1] in case of overlapping intervals
+    return min(1.0, total_overlap / wlen)
+
+
 def window_label(
     *,
     t_start: float,
@@ -42,16 +67,9 @@ def window_label(
     intervals: Sequence[Interval],
     overlap_threshold: float = 0.5,
 ) -> int:
-    if t_end <= t_start:
-        return 0
-    w = Interval(t_start, t_end)
-    wlen = t_end - t_start
-    ov = 0.0
-    for it in intervals:
-        ov = max(ov, interval_overlap(w, it) / wlen)
-        if ov >= overlap_threshold:
-            return 1
-    return 0
+    """Binary label: 1 if overlap fraction >= threshold, else 0."""
+    overlap_frac = window_label_soft(t_start=t_start, t_end=t_end, intervals=intervals)
+    return 1 if overlap_frac >= overlap_threshold else 0
 
 
 def windows_to_events(

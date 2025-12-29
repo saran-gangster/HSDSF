@@ -216,9 +216,13 @@ for split in random_split unseen_workload unseen_trojan unseen_regime; do
     FUS_DIR="$MODELS_DIR/fusion/$split"
     RES_DIR="$RESULTS_DIR/$split"
     
-    if [ -f "$FUS_DIR/fusion_model.pt" ]; then
+    # Evaluation can run with or without fusion model
+    # Hierarchical method doesn't require trained gate
+    if [ -f "$DYN_DIR/model_0.pt" ]; then
         if [ ! -f "$RES_DIR/results.csv" ]; then
             echo "Evaluating $split..."
+            # Create fusion dir if needed (for UGF evaluation compatibility)
+            mkdir -p "$FUS_DIR"
             "$PY" fusion/eval_fusion.py \
                 --processed-dir "$DATA_DIR/processed/$split" \
                 --static-dir "$STATIC_DIR" \
@@ -230,7 +234,7 @@ for split in random_split unseen_workload unseen_trojan unseen_regime; do
             echo "Results for $split already exist."
         fi
     else
-        echo "Skipping evaluation for $split (no fusion model)."
+        echo "Skipping evaluation for $split (no dynamic model)."
     fi
 done
 
