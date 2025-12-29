@@ -41,16 +41,16 @@ echo ""
 echo "Step 4: Evaluating fusion methods..."
 echo "========================================="
 python -m fusion.eval_fusion \
-    --splits unseen_regime_perrun
-
-# Step 5: Run paper experiments
-echo ""
-echo "Step 5: Running paper experiments..."
-echo "========================================="
-python experiments/paper_experiments.py
+    --processed-dir data/fusionbench_sim/processed/unseen_regime_perrun \
+    --static-dir models/static \
+    --dynamic-dir models/dynamic_unseen_regime_perrun \
+    --fusion-dir models/fusion_unseen_regime_perrun \
+    --out-dir paper/analysis/unseen_regime_perrun \
+    --runs-dir data/fusionbench_sim/runs \
+    --sweep-thresholds
 
 echo ""
 echo "========================================="
 echo "Experiment Complete!"
 echo "========================================="
-echo "Results saved to: paper/analysis/"
+echo "Results saved to: paper/analysis/unseen_regime_perrun/"
