@@ -215,10 +215,17 @@ def main() -> int:
     ap.add_argument("--stride-s", type=float, default=1.0)
     ap.add_argument("--overlap-threshold", type=float, default=0.5)
     ap.add_argument("--seed", type=int, default=1337)
+    ap.add_argument("--per-run-norm", action="store_true",
+                    help="Apply per-run normalization to mitigate domain shift (for unseen_regime)")
+    ap.add_argument("--warmup-steps", type=int, default=200,
+                    help="Number of warmup steps for per-run normalization baseline")
     args = ap.parse_args()
 
     manifest = _load_manifest(args.split)
     split_name = args.split.stem
+    # Add suffix when per-run normalization is enabled
+    if args.per_run_norm:
+        split_name = f"{split_name}_perrun"
     split_out = args.out_dir / split_name
     split_out.mkdir(parents=True, exist_ok=True)
 
@@ -267,6 +274,10 @@ def main() -> int:
             for mf in mask_features:
                 if mf in df.columns:
                     df[mf] = df[mf].astype(np.float32)
+
+            # Per-run normalization (for unseen_regime domain shift mitigation)
+            if args.per_run_norm and scaled_features:
+                df = normalize_per_run(df, list(scaled_features), warmup_steps=args.warmup_steps)
 
             x, y, t_centers = _windowize_run(
                 df,
