@@ -1,0 +1,54 @@
+{
+  "aggregated": {
+    "n_binaries": 1,
+    "mean_mrr": 0.3333333333333333,
+    "mean_analyst_utility": 3.0,
+    "median_best_rank": 3.0,
+    "mean_top1_hit": 0.0,
+    "mean_top3_hit": 1.0,
+    "mean_top5_hit": 1.0,
+    "mean_top10_hit": 1.0
+  },
+  "per_binary": {
+    "firmware_trojan": {
+      "metrics": {
+        "mrr": 0.3333333333333333,
+        "analyst_utility": 3,
+        "best_rank": 3,
+        "worst_rank": 3,
+        "top1_hit": 0.0,
+        "top3_hit": 1.0,
+        "top5_hit": 1.0,
+        "top10_hit": 1.0,
+        "binary": "firmware_trojan",
+        "n_functions": 30,
+        "n_true_trojans": 1
+      },
+      "top_5_functions": [
+        [
+          ".text#10",
+          0.8
+        ],
+        [
+          ".text#11",
+          0.75
+        ],
+        [
+          ".text#21",
+          0.75
+        ],
+        [
+          ".text#5",
+          0.7
+        ],
+        [
+          ".text#9",
+          0.7
+        ]
+      ],
+      "true_trojan_functions": [
+        "authenticate"
+      ]
+    }
+  }
+}
