@@ -305,23 +305,53 @@ Static analysis provides:
 
 Static cannot distinguish active vs inactive trojans within a trojan binary—this requires dynamic monitoring.
 
-### 6.3 Cold-Start Considerations
+### 6.3 Cold-Start Robustness (Contamination Sweep)
 
-We tested per-run normalization with **contaminated warmup** (trojan active during baseline period, steps 50-150 of warmup):
+We evaluate per-run normalization robustness using **post-warmup-only metrics** (excluding windows where t ≤ 20s) at varying contamination levels:
 
-| Condition | F1 | Precision | Recall | PR-AUC |
-|-----------|-----|-----------|--------|--------|
-| Clean warmup | 0.320 | 0.199 | 0.826 | 0.312 |
-| Contaminated | 0.408 | 0.272 | 0.819 | 0.501 |
+| Contamination | F1 | Precision | Recall |
+|---------------|------|-----------|--------|
+| 0% | **0.817** | 0.797 | 0.838 |
+| 10% | 0.808 | 0.790 | 0.827 |
+| 25% | 0.797 | 0.769 | 0.827 |
+| 50% | 0.750 | 0.695 | 0.815 |
+| 100% | 0.601 | 0.512 | 0.728 |
 
-**Surprising result**: Contaminated runs show +27% F1. This is **not** evidence of robustness—rather, contamination injects more positive signal into the run, making detection easier. The higher PR-AUC (0.50 vs 0.31) confirms better class separation due to increased positive rate, not normalization robustness.
+**Key finding**: Per-run normalization degrades **gracefully** with contamination. Even at 50% contamination, F1 drops only 8% (0.817→0.750). At 100% contamination, precision collapses (0.51) while recall remains reasonable (0.73), indicating the model shifts toward over-prediction rather than complete failure.
 
-**Implication**: Per-run normalization does not degrade catastrophically under warmup contamination, but our evaluation conflates "more positives" with "better detection." To isolate the cold-start effect, future work will compute metrics **excluding warmup windows** and match post-warmup positive rates between clean and contaminated runs.
+**Methodology**: Post-warmup-only evaluation isolates the cold-start effect by excluding the confounded warmup windows from metrics.
 
-### 6.4 Limitations
+### 6.4 Normalization Method Ablations
+
+We compare normalization strategies:
+
+| Method | Event-F1 | FAR/h | Description |
+|--------|----------|-------|-------------|
+| **Robust (MAD)** | **0.601** | **30.2** | Median/MAD baseline |
+| zscore | 0.580 | 32.1 | Mean/std baseline (default) |
+| EMA | 0.582 | 39.9 | Exponential moving average |
+| Mean-only | 0.536 | 47.1 | Mean subtraction, no scaling |
+| Global | 0.446 | 71.7 | Training set statistics |
+
+**Surprising finding**: Robust normalization (median/MAD) slightly **outperforms** z-score, suggesting outlier-resistant baselines improve detection. Global normalization performs worst, confirming per-run adaptation is essential.
+
+### 6.5 Window/Stride Tradeoff
+
+We sweep window length and stride to characterize the latency-accuracy tradeoff:
+
+| Window | Stride | Overlap | Event-F1 | FAR/h | TTD | Latency |
+|--------|--------|---------|----------|-------|-----|---------|
+| 5s | 1s | 80% | 0.436 | 53.0 | 3.0s | 5s |
+| 10s | 1s | 90% | 0.476 | 43.1 | 4.8s | 10s |
+| **20s** | **1s** | **95%** | **0.598** | **27.5** | **10.9s** | **20s** |
+| 30s | 1s | 97% | 0.673 | 16.0 | 14.7s | 30s |
+
+**Tradeoff**: Longer windows improve F1 (0.44→0.67) and reduce FAR (53→16/h) at the cost of detection latency (5s→30s). For latency ≤ 25s, **20s window with 1s stride** is optimal.
+
+### 6.6 Limitations
 
 1. **Simulator-only evaluation**: Real hardware validation is future work
-2. **Deterministic activation timing**: Trojans activate at fixed periodic intervals; randomized timing is a validity threat (see Future Work)
+2. **Deterministic activation timing**: Trojans activate at fixed periodic intervals; randomized timing validation pending
 3. **Binary-shared splits**: Test runs may share binaries with training; binary-disjoint generalization untested
 4. **Single platform**: Results specific to Jetson-class devices
 5. **Alert-only**: Response actions (kill, quarantine) not implemented
@@ -342,17 +372,19 @@ We tested per-run normalization with **contaminated warmup** (trojan active duri
 
 ## 8. Conclusion
 
-We presented HSDSF, a hybrid static-dynamic fusion system for detecting hardware trojan activation on edge devices. Our key findings:
+We presented HSDSF, a hybrid static-dynamic fusion system for detecting firmware trojan activation on edge devices. Our key findings:
 
-1. **Per-run baseline normalization** is the single most effective intervention, reducing FAR by 41% and improving F1 by 9%.
+1. **Per-run baseline normalization** is the single most effective intervention, reducing FAR by 41% and improving Event-F1 by 9%. Normalization degrades gracefully under warmup contamination (only 8% F1 drop at 50% contamination).
 
-2. **Warmup period of 20 seconds** is optimal, providing 53% F1 improvement over 5 seconds.
+2. **Robust (median/MAD) normalization** slightly outperforms z-score (F1: 0.601 vs 0.580), suggesting outlier-resistant baselines improve detection.
 
-3. **LLM-based localization** achieves 4.6× better function ranking than random, enabling efficient analyst triage.
+3. **20-second warmup** is optimal, providing 53% Event-F1 improvement over 5 seconds. For latency ≤ 25s, 20s window with 1s stride balances accuracy and responsiveness.
 
-4. **Simple fusion suffices**: A constant mixture (g=0.8) matches learned gating, confirming that static contributes global score shifting for FAR control rather than per-window routing.
+4. **LLM-based localization** achieves 4.8× better function ranking than random in a pilot study (N=3), suggesting promise for analyst triage.
 
-**Future work** includes real hardware validation, response action integration, and extension to other embedded platforms.
+5. **Simple fusion suffices**: A constant mixture (g=0.8) matches learned gating, confirming that static contributes global score shifting for FAR control rather than per-window routing.
+
+**Future work** includes real hardware validation, randomized activation timing validation, binary-disjoint generalization testing, and extension to other embedded platforms.
 
 ---
 
