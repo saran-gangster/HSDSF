@@ -87,6 +87,71 @@ def write_intervals_csv(run_dir: str, cfg: SimConfig, duration_s: float) -> None
             t += period
 
 
+def write_intervals_csv_randomized(
+    run_dir: str, cfg: SimConfig, duration_s: float, rng_seed: int
+) -> None:
+    """Generate stochastic activation intervals to test schedule-learning validity.
+    
+    Uses:
+    - Random start offset (uniform 0 to period)
+    - Random inter-arrival times (exponential with mean = period)
+    - Random durations (uniform 0.5x to 1.5x of on_s)
+    """
+    path = os.path.join(run_dir, "intervals.csv")
+    rng = random.Random(rng_seed)
+    
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(
+            [
+                "t_start_sim_s",
+                "t_end_sim_s",
+                "trojan_variant",
+                "trojan_family",
+                "strength",
+                "period_s",
+                "on_s",
+            ]
+        )
+
+        if duration_s <= 0:
+            return
+
+        period = max(1e-6, float(cfg.trojan_period_s))
+        base_on_s = max(0.0, min(float(cfg.trojan_on_s), period))
+        
+        if base_on_s <= 0:
+            return  # No trojan activations
+        
+        # Random start offset (uniform 0 to period)
+        t = rng.uniform(0, period)
+        
+        while t < duration_s:
+            # Random duration (0.5x to 1.5x of base)
+            on_s = base_on_s * rng.uniform(0.5, 1.5)
+            on_s = min(on_s, duration_s - t)  # Clamp to remaining time
+            
+            t_start = t
+            t_end = min(duration_s, t + on_s)
+            
+            if on_s > 0.0:
+                w.writerow(
+                    [
+                        f"{t_start:.6f}",
+                        f"{t_end:.6f}",
+                        cfg.trojan_variant,
+                        cfg.trojan_family,
+                        f"{float(cfg.trojan_strength):.6f}",
+                        f"{period:.6f}",
+                        f"{on_s:.6f}",
+                    ]
+                )
+            
+            # Random inter-arrival (exponential with mean = period)
+            inter_arrival = rng.expovariate(1.0 / period)
+            t += max(on_s, inter_arrival)  # Ensure no overlap
+
+
 def generate_run(
     *,
     out_root: str,

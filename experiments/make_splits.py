@@ -31,6 +31,7 @@ if REPO_ROOT not in sys.path:
 @dataclass(frozen=True)
 class RunMeta:
     run_id: str
+    binary_id: str
     workload_family: str
     trojan_family: str
     power_mode: str
@@ -42,6 +43,7 @@ def _load_run_meta(run_dir: Path) -> RunMeta:
     cfg = meta.get("sim_config", {})
     return RunMeta(
         run_id=str(meta.get("run_id") or run_dir.name),
+        binary_id=str(meta.get("binary_id") or "unknown"),
         workload_family=str(meta.get("workload_family") or cfg.get("workload_family") or "unknown"),
         trojan_family=str(meta.get("trojan_family") or cfg.get("trojan_family") or "unknown"),
         power_mode=str(meta.get("power_mode") or cfg.get("power_mode") or "unknown"),
@@ -165,6 +167,43 @@ def main() -> int:
         test=sorted(test),
         notes=f"unseen_regime=power_mode:{args.holdout_power_mode}|ambient_ge:{args.holdout_ambient_ge}",
     )
+
+    # Binary-disjoint split (realistic supply-chain scenario)
+    log("Creating binary_disjoint split...")
+    binary_to_runs: Dict[str, List[str]] = {}
+    for m in metas:
+        if m.binary_id not in binary_to_runs:
+            binary_to_runs[m.binary_id] = []
+        binary_to_runs[m.binary_id].append(m.run_id)
+    
+    all_binaries = sorted(binary_to_runs.keys())
+    n_binaries = len(all_binaries)
+    
+    # Split binaries: 60% train, 20% val, 20% test
+    import random
+    rng = random.Random(args.seed + 42)
+    shuffled_binaries = all_binaries[:]
+    rng.shuffle(shuffled_binaries)
+    
+    n_train_b = max(1, int(n_binaries * args.train_frac))
+    n_val_b = max(1, int(n_binaries * args.val_frac))
+    
+    train_binaries = set(shuffled_binaries[:n_train_b])
+    val_binaries = set(shuffled_binaries[n_train_b:n_train_b + n_val_b])
+    test_binaries = set(shuffled_binaries[n_train_b + n_val_b:])
+    
+    train = sorted([r for b in train_binaries for r in binary_to_runs[b]])
+    val = sorted([r for b in val_binaries for r in binary_to_runs[b]])
+    test = sorted([r for b in test_binaries for r in binary_to_runs[b]])
+    
+    _write_manifest(
+        args.out_dir / "binary_disjoint.json",
+        train=train,
+        val=val,
+        test=test,
+        notes=f"binary_disjoint: {len(train_binaries)}/{len(val_binaries)}/{len(test_binaries)} binaries, {len(train)}/{len(val)}/{len(test)} runs",
+    )
+    log(f"  Binary split: {len(train_binaries)} train, {len(val_binaries)} val, {len(test_binaries)} test binaries")
 
     log(f"Wrote splits under: {args.out_dir}")
     return 0
