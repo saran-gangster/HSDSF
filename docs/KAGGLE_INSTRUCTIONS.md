@@ -26,7 +26,7 @@ os.environ['PYTHONPATH'] = '/kaggle/working/HSDSF'
 ## Step 3: Install Dependencies
 
 ```python
-!pip install torch numpy pandas scikit-learn matplotlib tqdm pyarrow -q
+!pip install torch numpy pandas scikit-learn matplotlib tqdm pyarrow scipy -q
 ```
 
 ---
@@ -141,7 +141,11 @@ os.environ['PYTHONPATH'] = '/kaggle/working/HSDSF'
     --fusion-dir models/fusion_standard \
     --out-dir results/standard \
     --runs-dir data/fusionbench_sim/runs \
-    --sweep-thresholds
+    --window-len-s 20 \
+    --sweep-thresholds \
+    --threshold-source-split val \
+    --eval-split test \
+    --threshold-policy max_event_f1
 
 # Evaluate WITH per-run normalization
 !python fusion/eval_fusion.py \
@@ -151,7 +155,11 @@ os.environ['PYTHONPATH'] = '/kaggle/working/HSDSF'
     --fusion-dir models/fusion_perrun \
     --out-dir results/perrun \
     --runs-dir data/fusionbench_sim/runs \
-    --sweep-thresholds
+    --window-len-s 20 \
+    --sweep-thresholds \
+    --threshold-source-split val \
+    --eval-split test \
+    --threshold-policy max_event_f1
 ```
 
 ---

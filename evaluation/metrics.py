@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 import numpy as np
 from sklearn.metrics import average_precision_score
 
-from evaluation.events import Interval, match_events_iou, time_to_detect, windows_to_events
+from evaluation.events import Interval, match_events_iou, time_to_detect_emission, windows_to_events
 
 
 @dataclass(frozen=True)
@@ -93,7 +93,9 @@ def summarize_run_metrics(
     tp, fp, fn = match_events_iou(pred_events, true_intervals, iou_threshold=iou_threshold)
     ef1 = event_f1(tp, fp, fn)
     far = far_per_hour(pred_events=pred_events, duration_s=run_duration_s, true_intervals=true_intervals)
-    delays = time_to_detect(true_intervals, pred_events)
+    # Causal TTD: use emission times of positive windows (window end), not backdated event starts.
+    y_pred = [1 if float(x) >= float(threshold) else 0 for x in p]
+    delays = time_to_detect_emission(true_intervals, t_centers=t_centers, y_pred=y_pred, window_len_s=window_len_s)
     if delays:
         ttd_med = float(np.median(delays))
         ttd_p90 = float(np.percentile(delays, 90))

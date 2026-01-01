@@ -64,6 +64,134 @@ def find_optimal_threshold(
     return best_threshold, best_f1
 
 
+def _load_split_windows(processed_dir: Path, split: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Load window labels and metadata for a split.
+
+    Returns:
+        y_bin: [N] binary labels derived from soft labels >= 0.5
+        t_centers: [N] float centers (or 0..N-1 if missing)
+        run_ids: [N] run_id strings (or a single dummy id if missing)
+        binary_ids: [N] binary_id strings (or 'unknown' if missing)
+    """
+    path = processed_dir / f"windows_{split}.npz"
+    data = _load_npz(path)
+    y_soft = data["y"].astype(np.float32)
+    y_bin = (y_soft >= 0.5).astype(np.float32)
+    t_centers = data.get("t_center", np.arange(len(y_bin)))
+    run_ids = data.get("run_id", np.array(["run_000001"] * len(y_bin)))
+    binary_ids = data.get("binary_id", np.array(["unknown"] * len(y_bin)))
+    return y_bin, t_centers, run_ids, binary_ids
+
+
+def _mean_event_metrics_at_threshold(
+    *,
+    y: np.ndarray,
+    p: np.ndarray,
+    t_centers: np.ndarray,
+    run_ids: np.ndarray,
+    runs_dir: Path,
+    window_len_s: float,
+    threshold: float,
+) -> tuple[float, float]:
+    """Return (mean_event_f1, mean_event_far_per_hour) across runs at a threshold."""
+    event_f1s: list[float] = []
+    fars: list[float] = []
+    for run_id in np.unique(run_ids):
+        mask = run_ids == run_id
+        if not np.any(mask):
+            continue
+        run_p = p[mask]
+        run_y = y[mask]
+        run_t = t_centers[mask]
+        intervals_path = runs_dir / run_id / "intervals.csv"
+        intervals = load_intervals_csv(intervals_path)
+        run_duration_s = float(run_t.max() - run_t.min()) + float(window_len_s)
+        metrics = summarize_run_metrics(
+            y_true=run_y.astype(int).tolist(),
+            p=run_p.tolist(),
+            t_centers=run_t.tolist(),
+            true_intervals=intervals,
+            run_duration_s=run_duration_s,
+            window_len_s=window_len_s,
+            threshold=threshold,
+        )
+        if not np.isnan(metrics["event_f1"]):
+            event_f1s.append(float(metrics["event_f1"]))
+        if not np.isnan(metrics["far_per_hour"]):
+            fars.append(float(metrics["far_per_hour"]))
+    mean_f1 = float(np.mean(event_f1s)) if event_f1s else 0.0
+    mean_far = float(np.mean(fars)) if fars else 0.0
+    return mean_f1, mean_far
+
+
+def select_threshold_event_f1(
+    *,
+    y: np.ndarray,
+    p: np.ndarray,
+    t_centers: np.ndarray,
+    run_ids: np.ndarray,
+    runs_dir: Path,
+    window_len_s: float,
+    thresholds: np.ndarray | None = None,
+) -> tuple[float, float]:
+    """Select threshold that maximizes mean event-level F1 across runs."""
+    if thresholds is None:
+        thresholds = np.linspace(0.1, 0.9, 17)
+    best_f1 = -1.0
+    best_threshold = 0.5
+    for thresh in thresholds:
+        f1, _ = _mean_event_metrics_at_threshold(
+            y=y,
+            p=p,
+            t_centers=t_centers,
+            run_ids=run_ids,
+            runs_dir=runs_dir,
+            window_len_s=window_len_s,
+            threshold=float(thresh),
+        )
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = float(thresh)
+    return best_threshold, float(best_f1)
+
+
+def select_threshold_at_target_event_far(
+    *,
+    y: np.ndarray,
+    p: np.ndarray,
+    t_centers: np.ndarray,
+    run_ids: np.ndarray,
+    runs_dir: Path,
+    window_len_s: float,
+    target_far_per_hour: float,
+    thresholds: np.ndarray | None = None,
+) -> tuple[float, float]:
+    """Select threshold on a split to match an event FAR/h target (mean across runs)."""
+    if thresholds is None:
+        thresholds = np.linspace(0.01, 0.99, 200)
+
+    best_threshold = float(thresholds[-1])
+    best_far = 0.0
+    best_gap = float("inf")
+    for thresh in sorted([float(x) for x in thresholds], reverse=True):
+        _, far = _mean_event_metrics_at_threshold(
+            y=y,
+            p=p,
+            t_centers=t_centers,
+            run_ids=run_ids,
+            runs_dir=runs_dir,
+            window_len_s=window_len_s,
+            threshold=thresh,
+        )
+        if far <= float(target_far_per_hour):
+            gap = float(target_far_per_hour) - far
+            if gap < best_gap:
+                best_gap = gap
+                best_threshold = thresh
+                best_far = float(far)
+    return best_threshold, float(best_far)
+
+
 def find_threshold_at_target_far(
     y_true: np.ndarray,
     p: np.ndarray,
@@ -251,26 +379,35 @@ def main() -> int:
     ap.add_argument("--window-len-s", type=float, default=5.0)
     ap.add_argument("--sweep-thresholds", action="store_true", 
                     help="Sweep thresholds to find optimal per method")
+    ap.add_argument("--threshold-source-split", type=str, default="test", choices=["val", "test"],
+                    help="Split used for per-method threshold selection when sweeping (default: test for backward compatibility)")
+    ap.add_argument("--eval-split", type=str, default="test", choices=["val", "test"],
+                    help="Split used for reporting metrics (default: test)")
+    ap.add_argument("--threshold-policy", type=str, default="max_event_f1", choices=["max_event_f1", "target_event_far"],
+                    help="How to select thresholds on threshold-source-split")
+    ap.add_argument("--target-event-far-per-hour", type=float, default=None,
+                    help="If set (and threshold-policy=target_event_far), select thresholds to match this event FAR/h target on the threshold-source-split")
     args = ap.parse_args()
 
-    # Load test data
-    test_path = args.processed_dir / "windows_test.npz"
-    if not test_path.exists():
-        print(f"Test data not found: {test_path}")
+    # Load split metadata for threshold selection and evaluation
+    eval_path = args.processed_dir / f"windows_{args.eval_split}.npz"
+    if not eval_path.exists():
+        print(f"Eval data not found: {eval_path}")
         return 1
-    
-    test_data = _load_npz(test_path)
-    y_test_soft = test_data["y"].astype(np.float32)
-    y_test = (y_test_soft >= 0.5).astype(np.float32)  # Convert soft to binary for evaluation
-    t_centers = test_data.get("t_center", np.arange(len(y_test)))
-    run_ids = test_data.get("run_id", np.array(["run_000001"] * len(y_test)))
-    binary_ids = test_data.get("binary_id", np.array(["unknown"] * len(y_test)))
-    
-    print(f"Test set: {len(y_test)} windows, {len(np.unique(run_ids))} runs")
+    source_path = args.processed_dir / f"windows_{args.threshold_source_split}.npz"
+    if args.sweep_thresholds and not source_path.exists():
+        print(f"Threshold-source data not found: {source_path}")
+        return 1
 
-    # Load predictions
-    p_s, u_s = _load_static_predictions(args.static_dir, binary_ids)
-    p_d, u_d, _ = _load_dynamic_predictions(args.dynamic_dir, "test")
+    y_eval, t_eval, run_eval, binary_eval = _load_split_windows(args.processed_dir, args.eval_split)
+    print(f"Eval split '{args.eval_split}': {len(y_eval)} windows, {len(np.unique(run_eval))} runs")
+    if args.sweep_thresholds:
+        y_src, t_src, run_src, binary_src = _load_split_windows(args.processed_dir, args.threshold_source_split)
+        print(f"Threshold-source split '{args.threshold_source_split}': {len(y_src)} windows, {len(np.unique(run_src))} runs")
+
+    # Load predictions for eval split
+    p_s, u_s = _load_static_predictions(args.static_dir, binary_eval)
+    p_d, u_d, _ = _load_dynamic_predictions(args.dynamic_dir, args.eval_split)
     
     print(f"Static: p_s mean={p_s.mean():.3f}, u_s mean={u_s.mean():.3f}")
     print(f"Dynamic: p_d mean={p_d.mean():.3f}, u_d mean={u_d.mean():.3f}")
@@ -281,6 +418,11 @@ def main() -> int:
     p_s_train, u_s_train = _load_static_predictions(args.static_dir, train_binary_ids)
     p_d_train, u_d_train, y_train_soft = _load_dynamic_predictions(args.dynamic_dir, "train")
     y_train = (y_train_soft >= 0.5).astype(np.float32)  # Convert soft to binary
+
+    # Load predictions for threshold-source split when needed
+    if args.sweep_thresholds:
+        p_s_src, u_s_src = _load_static_predictions(args.static_dir, binary_src)
+        p_d_src, u_d_src, _ = _load_dynamic_predictions(args.dynamic_dir, args.threshold_source_split)
 
     results: List[Dict[str, float]] = []
 
@@ -319,25 +461,68 @@ def main() -> int:
         print(f"\nEvaluating {method_name}...")
         baseline_fn = BASELINES[method_name]
         result = baseline_fn(**kwargs)
-        
-        # Find optimal threshold if sweep enabled
-        threshold_to_use = args.threshold
+
+        # Determine threshold
+        threshold_to_use = float(args.threshold)
         if args.sweep_thresholds:
-            opt_thresh, opt_f1 = find_optimal_threshold(y_test, result.p)
-            threshold_to_use = opt_thresh
-            print(f"  Optimal threshold: {opt_thresh:.2f} (F1={opt_f1:.3f})")
+            # Build source-split scores for this method
+            kwargs_src = dict(kwargs)
+            if "p_s" in kwargs_src:
+                kwargs_src["p_s"] = p_s_src
+            if "p_d" in kwargs_src:
+                kwargs_src["p_d"] = p_d_src
+            if "u_s" in kwargs_src:
+                kwargs_src["u_s"] = u_s_src
+            if "u_d" in kwargs_src:
+                kwargs_src["u_d"] = u_d_src
+            if "p_s_train" in kwargs_src:
+                kwargs_src["p_s_train"] = p_s_train
+            if "p_d_train" in kwargs_src:
+                kwargs_src["p_d_train"] = p_d_train
+            if "u_d_train" in kwargs_src:
+                kwargs_src["u_d_train"] = u_d_train
+            kwargs_src["y_train"] = y_train
+
+            result_src = baseline_fn(**kwargs_src)
+
+            if args.threshold_policy == "target_event_far":
+                if args.target_event_far_per_hour is None:
+                    raise SystemExit("--target-event-far-per-hour is required when --threshold-policy=target_event_far")
+                threshold_to_use, achieved_far = select_threshold_at_target_event_far(
+                    y=y_src,
+                    p=result_src.p,
+                    t_centers=t_src,
+                    run_ids=run_src,
+                    runs_dir=args.runs_dir,
+                    window_len_s=args.window_len_s,
+                    target_far_per_hour=float(args.target_event_far_per_hour),
+                )
+                print(f"  Selected threshold on {args.threshold_source_split}: {threshold_to_use:.2f} (mean event FAR/h={achieved_far:.2f})")
+            else:
+                threshold_to_use, best_f1 = select_threshold_event_f1(
+                    y=y_src,
+                    p=result_src.p,
+                    t_centers=t_src,
+                    run_ids=run_src,
+                    runs_dir=args.runs_dir,
+                    window_len_s=args.window_len_s,
+                )
+                print(f"  Selected threshold on {args.threshold_source_split}: {threshold_to_use:.2f} (mean event F1={best_f1:.3f})")
         
         metrics = evaluate_method(
             method_name=method_name,
             p=result.p,
-            y=y_test,
-            t_centers=t_centers,
-            run_ids=run_ids,
+            y=y_eval,
+            t_centers=t_eval,
+            run_ids=run_eval,
             runs_dir=args.runs_dir,
             window_len_s=args.window_len_s,
             threshold=threshold_to_use,
         )
         metrics["threshold"] = threshold_to_use
+        metrics["threshold_source_split"] = args.threshold_source_split if args.sweep_thresholds else "fixed"
+        metrics["eval_split"] = args.eval_split
+        metrics["threshold_policy"] = args.threshold_policy if args.sweep_thresholds else "fixed"
         results.append(metrics)
         print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
         # Debug: show score distribution to verify PR-AUC is computed on correct scores
@@ -358,19 +543,52 @@ def main() -> int:
             p_f = p_f.numpy()
             g = g.numpy()
         
-        # Find optimal threshold if sweep enabled
-        threshold_to_use = args.threshold
+        # Determine threshold
+        threshold_to_use = float(args.threshold)
         if args.sweep_thresholds:
-            opt_thresh, opt_f1 = find_optimal_threshold(y_test, p_f)
-            threshold_to_use = opt_thresh
-            print(f"  Optimal threshold: {opt_thresh:.2f} (F1={opt_f1:.3f})")
+            if args.threshold_source_split == args.eval_split:
+                p_src_f = p_f
+            else:
+                # Build UGF scores on the threshold-source split
+                with torch.no_grad():
+                    p_f_src, _g_src = model.forward_with_gate(
+                        torch.from_numpy(p_s_src),
+                        torch.from_numpy(p_d_src),
+                        torch.from_numpy(u_s_src),
+                        torch.from_numpy(u_d_src),
+                    )
+                    p_src_f = p_f_src.numpy()
+
+            if args.threshold_policy == "target_event_far":
+                if args.target_event_far_per_hour is None:
+                    raise SystemExit("--target-event-far-per-hour is required when --threshold-policy=target_event_far")
+                threshold_to_use, achieved_far = select_threshold_at_target_event_far(
+                    y=y_src,
+                    p=p_src_f,
+                    t_centers=t_src,
+                    run_ids=run_src,
+                    runs_dir=args.runs_dir,
+                    window_len_s=args.window_len_s,
+                    target_far_per_hour=float(args.target_event_far_per_hour),
+                )
+                print(f"  Selected threshold on {args.threshold_source_split}: {threshold_to_use:.2f} (mean event FAR/h={achieved_far:.2f})")
+            else:
+                threshold_to_use, best_f1 = select_threshold_event_f1(
+                    y=y_src,
+                    p=p_src_f,
+                    t_centers=t_src,
+                    run_ids=run_src,
+                    runs_dir=args.runs_dir,
+                    window_len_s=args.window_len_s,
+                )
+                print(f"  Selected threshold on {args.threshold_source_split}: {threshold_to_use:.2f} (mean event F1={best_f1:.3f})")
         
         metrics = evaluate_method(
             method_name="UGF",
             p=p_f,
-            y=y_test,
-            t_centers=t_centers,
-            run_ids=run_ids,
+            y=y_eval,
+            t_centers=t_eval,
+            run_ids=run_eval,
             runs_dir=args.runs_dir,
             window_len_s=args.window_len_s,
             threshold=threshold_to_use,
@@ -378,6 +596,9 @@ def main() -> int:
         metrics["gate_mean"] = float(g.mean())
         metrics["gate_std"] = float(g.std())
         metrics["threshold"] = threshold_to_use
+        metrics["threshold_source_split"] = args.threshold_source_split if args.sweep_thresholds else "fixed"
+        metrics["eval_split"] = args.eval_split
+        metrics["threshold_policy"] = args.threshold_policy if args.sweep_thresholds else "fixed"
         results.append(metrics)
         print(f"  FAR/h: {metrics['far_per_hour']:.2f}, TTD: {metrics['ttd_median_s']:.1f}s, F1: {metrics['event_f1']:.3f}")
         print(f"  Gate mean: {g.mean():.3f}, std: {g.std():.3f}")

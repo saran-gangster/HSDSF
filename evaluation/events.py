@@ -159,3 +159,52 @@ def time_to_detect(true: Sequence[Interval], pred: Sequence[Interval]) -> List[f
         if best is not None:
             delays.append(best)
     return delays
+
+
+def time_to_detect_emission(
+    true: Sequence[Interval],
+    *,
+    t_centers: Sequence[float],
+    y_pred: Sequence[int],
+    window_len_s: float,
+) -> List[float]:
+    """Causal TTD using emission times.
+
+    We treat each window score as being emitted at the window end time:
+        t_emit = t_center + 0.5 * window_len_s
+
+    For each true interval starting at t0, we find the first emitted positive window
+    whose window interval overlaps the true interval, and compute:
+        max(0, t_emit - t0)
+
+    This avoids backdating detection earlier than the score emission time.
+    """
+    assert len(t_centers) == len(y_pred)
+    half = 0.5 * float(window_len_s)
+
+    # Precompute emitted positives (emit time + window interval)
+    positives: List[tuple[float, Interval]] = []
+    for tc, yp in zip(t_centers, y_pred):
+        if int(yp) != 1:
+            continue
+        tc_f = float(tc)
+        w = Interval(tc_f - half, tc_f + half)
+        t_emit = tc_f + half
+        positives.append((t_emit, w))
+
+    positives.sort(key=lambda x: x[0])
+
+    delays: List[float] = []
+    for it in true:
+        t0 = float(it.start_s)
+        best: float | None = None
+        for t_emit, w in positives:
+            if t_emit < t0:
+                # emitted before the event starts; cannot count for causal detection
+                continue
+            if interval_overlap(it, w) > 0.0:
+                best = max(0.0, float(t_emit) - t0)
+                break
+        if best is not None:
+            delays.append(best)
+    return delays

@@ -210,8 +210,8 @@ def main() -> int:
     ap.add_argument("--split", type=Path, required=True)
     ap.add_argument("--out-dir", type=Path, default=Path("data/fusionbench_sim/processed"))
 
-    ap.add_argument("--resample-hz", type=float, default=20.0)
-    ap.add_argument("--window-len-s", type=float, default=10.0)
+    ap.add_argument("--resample-hz", type=float, default=10.0)
+    ap.add_argument("--window-len-s", type=float, default=20.0)
     ap.add_argument("--stride-s", type=float, default=1.0)
     ap.add_argument("--overlap-threshold", type=float, default=0.5)
     ap.add_argument("--seed", type=int, default=1337)
