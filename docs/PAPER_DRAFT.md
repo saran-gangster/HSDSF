@@ -348,11 +348,27 @@ We sweep window length and stride to characterize the latency-accuracy tradeoff:
 
 **Tradeoff**: Longer windows improve F1 (0.44→0.67) and reduce FAR (53→16/h) at the cost of detection latency (5s→30s). For latency ≤ 25s, **20s window with 1s stride** is optimal.
 
-### 6.6 Limitations
+### 6.6 Binary-Disjoint Generalization
+
+We evaluate on a **binary-disjoint split** where test binaries are completely unseen during training:
+
+| Split | Windows | Binaries | Event-F1 | Precision | Recall | FAR/h |
+|-------|---------|----------|----------|-----------|--------|-------|
+| Train | 3,591 | 6 | 0.882 | 0.892 | 0.873 | 92 |
+| Val | 1,197 | 6 | 0.840 | 0.844 | 0.836 | 121 |
+| **Test** | **1,368** | **4** | **0.710** | **0.628** | **0.816** | **299** |
+
+**Generalization gap**: Train F1 (0.882) − Test F1 (0.710) = **17.2%**
+
+**Interpretation**: Significant performance degradation on unseen binaries indicates the model partially overfits to binary-specific patterns. FAR increases 3× (92→299/h) on unseen binaries, suggesting static features provide binary-specific false alarm suppression that doesn't transfer. This is a known limitation of the current dataset size (6 binaries).
+
+**Implication**: Real-world deployment requires either (a) larger training diversity, (b) fine-tuning on new binaries, or (c) operating at higher FAR tolerance for unseen binaries.
+
+### 6.7 Limitations
 
 1. **Simulator-only evaluation**: Real hardware validation is future work
-2. **Deterministic activation timing**: Trojans activate at fixed periodic intervals; randomized timing validation pending
-3. **Binary-shared splits**: Test runs may share binaries with training; binary-disjoint generalization untested
+2. **Binary generalization gap**: 17% F1 drop on unseen binaries (see 6.6)
+3. **Deterministic activation timing**: Trojans activate at fixed periodic intervals; cross-timing validation pending
 4. **Single platform**: Results specific to Jetson-class devices
 5. **Alert-only**: Response actions (kill, quarantine) not implemented
 
